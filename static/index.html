@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1c1a17">
+  <link rel="icon" href="data:,">
+  <title>Konitive · Laboratorio de Atención</title>
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+
+  <header class="barra">
+    <span class="barra-sello">K</span>
+    <span class="barra-nombre">KONITIVE</span>
+    <span class="barra-sep">//</span>
+    <span class="barra-sub">LABORATORIO DE ATENCIÓN</span>
+    <button id="btn-salir" class="barra-salir" hidden>SALIR ✕</button>
+  </header>
+
+  <main id="app">
+
+    <!-- INICIO -->
+    <section id="pantalla-inicio" class="pantalla activa">
+      <div class="portada">
+
+        <div class="portada-izquierda">
+          <div class="retrato" aria-hidden="true">
+            <svg viewBox="0 0 96 96" role="presentation">
+              <rect width="96" height="96" fill="#1c1a17"/>
+              <path d="M26 96 Q28 64 48 64 Q68 64 70 96 Z" fill="#f7f2e7"/>
+              <circle cx="48" cy="38" r="21" fill="#f7f2e7"/>
+              <path d="M27 33 Q30 12 48 12 Q67 12 69 33 Q58 24 48 26 Q37 24 27 33 Z" fill="#1c1a17"/>
+              <circle cx="39" cy="39" r="9" fill="none" stroke="#1c1a17" stroke-width="3.5"/>
+              <circle cx="59" cy="39" r="9" fill="none" stroke="#1c1a17" stroke-width="3.5"/>
+              <path d="M48 39h2M30 37l-6-3M68 37l6-3" stroke="#1c1a17" stroke-width="3.5" fill="none"/>
+              <path d="M43 55 Q48 59 53 55" stroke="#1c1a17" stroke-width="3" fill="none"/>
+              <path d="M48 64 L41 74 L48 82 L55 74 Z" fill="#d33827"/>
+            </svg>
+          </div>
+          <p class="kicker">VOL. 01 — ENTRENAMIENTO CEREBRAL</p>
+          <h1>KONI<br>TIVE</h1>
+          <p class="subtitulo">CUENTA · MEMORIZA · ESCRIBE · APILA · CALCULA</p>
+          <div class="raya"></div>
+        </div>
+
+        <div class="ficha">
+          <div class="ficha-cabecera"><span>FICHA DE INSCRIPCIÓN</span><span>Nº 01</span></div>
+
+          <label class="campo">
+            <span class="etiqueta">NOMBRE DEL PACIENTE</span>
+            <input id="nombre" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off">
+          </label>
+
+          <button id="btn-crear" class="boton rojo">ABRIR SALA →</button>
+
+          <div class="separador"><span>YA TENGO UN CÓDIGO</span></div>
+          <div class="fila-unirse">
+            <input id="codigo" type="text" maxlength="5" placeholder="CÓDIGO" autocomplete="off" spellcheck="false">
+            <button id="btn-unirse" class="boton oscuro">UNIRSE</button>
+          </div>
+
+          <div class="separador"><span>O BIEN</span></div>
+          <button id="btn-fiesta" class="boton rojo">FIESTA · HASTA 8 JUGADORES</button>
+          <button id="btn-individual" class="boton contorno">INDIVIDUAL</button>
+          <p id="record-cajas" class="nota"></p>
+          <p id="record-operaciones" class="nota"></p>
+
+          <p id="error-inicio" class="error" role="alert"></p>
+          <p class="nota">Abre esta misma dirección en los dos navegadores, o escanea el QR de la sala con tu celular.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- INDIVIDUAL: elegir uno, varios o todos los juegos -->
+    <section id="pantalla-individual" class="pantalla">
+      <div class="lobby">
+        <p class="kicker">MODO INDIVIDUAL</p>
+        <h2 class="panel-titulo">ELIGE TUS PRUEBAS</h2>
+        <p class="pista">Marca una, varias o todas. Se jugarán una detrás de otra y al final verás un resumen con tus puntos.</p>
+        <div class="selector-individual" id="selector-individual">
+          <button type="button" class="boton-juego" data-juego="pajaros" aria-pressed="false">PÁJAROS</button>
+          <button type="button" class="boton-juego" data-juego="escritura" aria-pressed="false">PALABRAS</button>
+          <button type="button" class="boton-juego" data-juego="cajas" aria-pressed="false">CAJAS</button>
+          <button type="button" class="boton-juego" data-juego="operaciones" aria-pressed="false">OPERACIONES</button>
+          <button type="button" class="boton-juego" data-juego="stroop" aria-pressed="false">STROOP</button>
+          <button type="button" class="boton-juego" data-juego="triangulos" aria-pressed="false">TRIÁNGULOS</button>
+          <button type="button" class="boton-juego" data-juego="relojes" aria-pressed="false">RELOJES</button>
+          <button type="button" class="boton-juego" data-juego="menor" aria-pressed="false">MENOR A MAYOR</button>
+          <button type="button" class="boton-juego" data-juego="memoria" aria-pressed="false">MEMORIA</button>
+          <button type="button" class="boton-juego" data-juego="vuelto" aria-pressed="false">DAR VUELTO</button>
+          <button type="button" class="boton-juego" data-juego="silabas" aria-pressed="false">SÍLABAS</button>
+        </div>
+        <div class="acciones">
+          <button id="btn-todos" class="boton contorno chico" type="button">JUGAR TODOS</button>
+          <button id="btn-ninguno" class="boton contorno chico" type="button">QUITAR TODOS</button>
+        </div>
+        <button id="btn-empezar-individual" class="boton rojo" type="button" disabled>EMPEZAR</button>
+        <p id="error-individual" class="error" role="alert"></p>
+      </div>
+    </section>
+
+    <!-- INVITADO: llega desde ?sala=CODIGO -->
+    <section id="pantalla-invitado" class="pantalla">
+      <div class="lobby">
+        <p class="kicker">INVITACIÓN RECIBIDA</p>
+        <div class="ticket">
+          <div class="ticket-label">CÓDIGO DE ACCESO</div>
+          <div id="codigo-invitado" class="ticket-codigo">-----</div>
+          <div class="ticket-pie">ESCRIBE TU NOMBRE PARA ENTRAR</div>
+        </div>
+        <label class="campo">
+          <span class="etiqueta">TU NOMBRE</span>
+          <input id="nombre-invitado" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off">
+        </label>
+        <button id="btn-unirme" class="boton rojo">UNIRME AL LOBBY</button>
+        <p id="error-invitado" class="error" role="alert"></p>
+      </div>
+    </section>
+
+    <!-- LOBBY -->
+    <section id="pantalla-lobby" class="pantalla">
+      <div class="lobby">
+        <p class="kicker">SALA DE ESPERA</p>
+        <div class="ticket">
+          <div class="ticket-label">CÓDIGO DE ACCESO</div>
+          <div id="codigo-sala" class="ticket-codigo">-----</div>
+          <div class="ticket-pie">COMPÁRTELO CON TU RIVAL</div>
+        </div>
+        <div class="lobby-qr">
+          <img id="qr-sala" alt="Código QR para unirse a la sala" width="180" height="180">
+          <p class="pista">Escanea con el celular o abre el enlace. Si estás en casa, PC y celular deben estar en la misma WiFi; si no, usa el túnel.</p>
+          <button id="btn-copiar" class="boton contorno chico">COPIAR ENLACE</button>
+        </div>
+        <div class="jugadores" id="lista-jugadores"></div>
+        <button id="btn-empezar" class="boton rojo" disabled>INICIAR EXPERIMENTO</button>
+        <div id="selector-fiesta" class="selector-fiesta" hidden>
+          <p class="kicker">ELIGE EL JUEGO</p>
+          <div class="selector-juegos">
+            <button class="boton rojo" data-juego="pajaros">PÁJAROS</button>
+            <button class="boton rojo" data-juego="escritura">PALABRAS</button>
+            <button class="boton rojo" data-juego="cajas">CAJAS</button>
+            <button class="boton rojo" data-juego="operaciones">OPERACIONES</button>
+            <button class="boton rojo" data-juego="stroop">STROOP</button>
+            <button class="boton rojo" data-juego="triangulos">TRIÁNGULOS</button>
+            <button class="boton rojo" data-juego="relojes">RELOJES</button>
+            <button class="boton rojo" data-juego="menor">MENOR A MAYOR</button>
+            <button class="boton rojo" data-juego="memoria">MEMORIA</button>
+            <button class="boton rojo" data-juego="vuelto">DAR VUELTO</button>
+            <button class="boton rojo" data-juego="silabas">SÍLABAS</button>
+          </div>
+          <button id="btn-fin-fiesta" class="boton contorno chico">TERMINAR FIESTA</button>
+        </div>
+        <div id="podio-lobby" class="podio-lobby"></div>
+        <p id="estado-lobby" class="pista"></p>
+      </div>
+    </section>
+
+    <!-- MANDO EN FIESTA -->
+    <section id="pantalla-mando" class="pantalla">
+      <div class="lobby">
+        <p class="kicker">MODO FIESTA · MANDO CONECTADO</p>
+        <div class="mando-nombre" id="mando-nombre">—</div>
+        <p class="pista" id="mando-estado">Esperando a que el anfitrión elija un juego…</p>
+        <div class="mando-lista" id="mando-lista"></div>
+      </div>
+    </section>
+
+    <!-- PODIO ANIMADO -->
+    <section id="pantalla-podio" class="pantalla">
+      <div class="podio">
+        <p class="kicker" id="podio-kicker">PODIO · DESPUÉS DE PÁJAROS</p>
+        <h2 class="podio-titulo" id="podio-titulo">ASÍ VA LA FIESTA</h2>
+        <div id="lista-podio" class="lista-podio"></div>
+        <p class="pista" id="podio-pie">El anfitrión elige el siguiente juego…</p>
+      </div>
+    </section>
+
+    <!-- PARTIDA -->
+    <section id="pantalla-juego" class="pantalla">
+      <div class="cabecera">
+        <div class="marcador" id="marcador-0"></div>
+        <div class="ronda">
+          <div id="etiqueta-ronda" class="ronda-num">RONDA 01</div>
+          <div id="titulo-juego" class="ronda-titulo">PÁJAROS</div>
+        </div>
+        <div class="marcador derecha" id="marcador-1"></div>
+      </div>
+      <div id="contenido" class="contenido"></div>
+    </section>
+
+  </main>
+
+  <div id="aviso" class="aviso" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
