@@ -1,4 +1,4 @@
-"""Pruebas de integración de los siete minijuegos de Konitive.
+"""Pruebas de integración de los ocho minijuegos de Konitive.
 
 Se juega cada prueba en INDIVIDUAL respondiendo siempre bien (así se comprueba
 el cálculo del Brain Age y la precisión) y se hace una FIESTA con dos mandos
@@ -442,7 +442,7 @@ async def main() -> None:
     await jugar_lista_fiesta()
     await asyncio.sleep(0.1)
     assert not servidor.salas, f"Quedaron salas abiertas: {list(servidor.salas)}"
-    print("\nOK - Siete minijuegos correctos en individual y fiesta")
+    print("\nOK - Ocho minijuegos correctos en individual y fiesta")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Los siete minijuegos de entrenamiento y la validación de sus respuestas."""
+"""Los ocho minijuegos de entrenamiento y la validación de sus respuestas."""
 from __future__ import annotations
 
 import asyncio
@@ -87,7 +87,7 @@ VISUAL_MINI = {
 
 # ---------------------------------------------------------------------------
 # Minijuegos de entrenamiento (Stroop, Triángulos, Relojes, Menor a mayor,
-# Memoria, Vuelto y Sílabas). Todos comparten este bucle: la fase lleva el
+# Memoria, Vuelto, Sílabas y Piedra papel tijera). Todos comparten este bucle: la fase lleva el
 # nombre del juego, las respuestas incluyen ronda y jugador, y el host mide
 # los tiempos y calcula el puntaje Brain Age.
 # ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ def visual_mini(juego: str, reto: dict) -> dict:
 def estimulo_para_mando(juego: str, reto: dict) -> dict:
     """Lo que el celular puede mostrar sin revelar la respuesta correcta.
 
-    En los cinco juegos de patrón amplio y en Memoria el mando solo mira la PC.
+    En los juegos de patrón amplio y en Memoria el mando solo mira la PC.
     Menor a mayor necesita las posiciones para tocarlas y no revela el orden.
     """
     if juego in MINIJUEGOS_SOLO_PANTALLA or juego == "memoria":

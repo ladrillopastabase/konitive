@@ -58,7 +58,7 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 - `README.md`: fuente de verdad de modos, juegos, reglas, instalación, arquitectura y pruebas.
 - `juego/frases_silabas.json`: 63 frases con separación silábica validada.
 - `juego/modelos/emnist_model.onnx` (26 letras) y `juego/modelos/mnist_model.onnx` (10 dígitos).
-- Diez suites ejecutables: `test_reconocedor.py`, `test_partida.py`, `test_cajas.py`, `test_operaciones.py`, `test_salas.py`, `test_individual.py`, `test_silabas.py`, `test_minijuegos.py`, `test_ppt.py`, `test_revision.py`.
+- Once suites ejecutables: `test_reconocedor.py`, `test_partida.py`, `test_cajas.py`, `test_operaciones.py`, `test_salas.py`, `test_individual.py`, `test_silabas.py`, `test_minijuegos.py`, `test_ppt.py`, `test_revision.py`, `test_fiesta_progreso.py`.
 - No hay testimonios, clientes, métricas de uso ni evidencia de mercado. No inventarlos.
 
 ## Product Principles

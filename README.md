@@ -219,12 +219,12 @@ número de sílabas.
 
 ### PIEDRA · PAPEL · TIJERA
 
-10 rondas. La pantalla muestra la mano del rival y una consigna: **GANAR** o
-**PERDER**. Hay que responder con una mano que gane o que pierda a propósito
-contra la del rival; la mano del rival nunca es una respuesta válida. La
-consigna **PERDER** aparece 2 de cada 3 rondas, así que hay que leerla antes de
-tocar. Se responde en **4 s**, con el mismo Brain Age de los demás minijuegos
-(`tiempo total + 5 segundos por error`).
+10 rondas. Se muestran la mano del rival y una consigna: **GANAR** o **PERDER**.
+Hay que responder con una mano que gane o que pierda a propósito contra la del
+rival; tocar la mano del rival empataría y cuenta como error, así que nunca es
+la mano correcta. La consigna **PERDER** aparece 2 de cada 3 rondas, así que hay
+que leerla antes de tocar. Se responde en **4 s**, con el mismo Brain Age de los
+demás minijuegos (`tiempo total + 5 segundos por error`).
 
 ## FIESTA
 
@@ -239,7 +239,9 @@ los cuatro clásicos y los ocho minijuegos anteriores.
   pila de cajas, ni el texto de la operación, ni la grilla de MEMORIA. Tampoco
   viaja nunca la respuesta correcta de ningún minijuego. En los demás minijuegos
   el mando ve el estímulo (o la pantalla, según corresponda) y responde desde su
-  celular; la pantalla es solo espectadora mientras responden.
+  celular; la pantalla es solo espectadora mientras responden. En PIEDRA · PAPEL ·
+  TIJERA la mano del rival y la consigna se ven solo en la pantalla; el mando
+  recibe únicamente el aviso de mirar.
 - Cada mando puntúa por separado. Si un mando se desconecta, la partida sigue y
   solo se actualiza la lista de conectados; si se va la pantalla, la partida se
   cancela.
