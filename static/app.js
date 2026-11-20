@@ -3138,6 +3138,7 @@
       escritura: "PALABRAS",
       cajas: "CAJAS",
       operaciones: "OPERACIONES",
+      rastreo: "RASTREO DE HÁMSTERS",
       ...NOMBRES_MINI,
     };
     const resumen = msg.resumen || {};
@@ -3145,7 +3146,7 @@
     const tarjetas = orden
       .map((clave) => {
         const dato = resumen[clave] || {};
-        const detalle = JUEGOS_MINI.includes(clave)
+        const detalle = JUEGOS_MINI.includes(clave) || clave === "rastreo"
           ? `PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}`
           : clave === "cajas"
             ? `ACIERTOS ${dato.aciertos ?? 0} · MEJOR RACHA ${dato.mejor_racha ?? 0}`

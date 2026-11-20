@@ -23,7 +23,7 @@ CLAVES_SOLO_PANTALLA = frozenset(
 
 
 JUEGOS = ("pajaros", "escritura")
-# Fiesta: los juegos clásicos más los ocho minijuegos de entrenamiento.
+# Fiesta: los juegos clásicos más los nueve minijuegos de entrenamiento.
 # El host es la pantalla y hay hasta 8 mandos. «ppt» cierra la lista para fijar
 # el orden de portada; se filtra de JUEGOS_MINI antes de añadirlo para que no
 # aparezca dos veces.

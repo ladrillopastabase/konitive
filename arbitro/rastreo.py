@@ -267,7 +267,7 @@ async def bucle_rastreo(sala: Sala) -> None:
                     "necesario": rondas,
                     "dificultad": dificultad,
                     "reto": {
-                        "final": dict(plan["final"]),
+                        "final": list(plan["final"].values()),
                         "aciertos": {
                             pid: dato["aciertos"] for pid, dato in por_jugador.items()
                         },

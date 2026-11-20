@@ -4,12 +4,9 @@ from pathlib import Path
 from juego.minijuegos import JUEGOS_MINI
 from arbitro.nucleo import JUEGOS_FIESTA, NOMBRES_JUEGOS
 from juego.rastreo import (
-    CELDAS, HAMSTERS, LADOS, BoardManager, CatSpawner,
-    HamsterManager, MovementSystem,
-)
-from juego.rastreo import (
-    DifficultyManager, GameManager, NIVELES, RONDAS_RASTREO,
-    ScoreManager, SelectionManager,
+    CELDAS, HAMSTERS, LADOS, NIVELES, RONDAS_RASTREO,
+    BoardManager, CatSpawner, DifficultyManager, GameManager,
+    HamsterManager, MovementSystem, ScoreManager, SelectionManager,
 )
 
 BASE = Path(__file__).parent
@@ -104,6 +101,19 @@ def probar_rastreo_cliente_reutiliza_sprite_y_fases():
     assert ".rastreo-casilla" in css
     assert "calc(-100% - var(--v-1))" in css and "calc(100% + var(--v-1))" in css
 
+def probar_resumen_individual_rastreo_y_final_sin_ids():
+    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    codigo = (BASE / "arbitro/rastreo.py").read_text(encoding="utf-8")
+    inicio = js.index("function mostrarResumenIndividual")
+    bloque = js[inicio : js.index("\n  }", inicio)]
+    assert 'rastreo: "RASTREO DE HÁMSTERS"' in bloque
+    detalle = bloque.split("const detalle =", 1)[1].split("return `<div", 1)[0]
+    assert 'JUEGOS_MINI.includes(clave) || clave === "rastreo"' in detalle
+    assert "PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}" in detalle
+    assert "VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}" in detalle
+    assert '"final": list(plan["final"].values())' in codigo
+    assert '"final": dict(plan["final"])' not in codigo
+
 def probar_documentacion_incluye_rastreo():
     readme = (BASE / "README.md").read_text(encoding="utf-8")
     producto = (BASE / "PRODUCT.md").read_text(encoding="utf-8")
@@ -114,11 +124,9 @@ def probar_documentacion_incluye_rastreo():
     assert "RASTREO DE HÁMSTERS" in producto
 
 import asyncio, json, threading, time
-from pathlib import Path
 import uvicorn, websockets
 import servidor
 from arbitro import nucleo
-from juego.rastreo import NIVELES, LADOS
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
@@ -130,7 +138,6 @@ threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
 while not servidor_uvicorn.started:
     time.sleep(0.02)
 URL = "ws://127.0.0.1:8786/ws"
-BASE = Path(__file__).parent
 
 
 class Cliente:
@@ -238,6 +245,7 @@ async def main():
     probar_rastreo_registrado_como_13a_prueba()
     probar_rastreo_contrato_cliente()
     probar_rastreo_cliente_reutiliza_sprite_y_fases()
+    probar_resumen_individual_rastreo_y_final_sin_ids()
     probar_documentacion_incluye_rastreo()
     await probar_rastreo_individual_y_seleccion_invalida()
     await probar_rastreo_movimientos_secuenciales()
