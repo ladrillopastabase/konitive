@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import time
 
-from juego.minijuegos import DENOMINACIONES_CLP, JUEGOS_ESCRITURA, RONDAS_MINI, generar
+from juego.minijuegos import (
+    DENOMINACIONES_CLP, JUEGOS_ESCRITURA, MANOS, RONDAS_MINI, generar,
+)
 from arbitro import nucleo
 from arbitro.nucleo import (
     Jugador,
@@ -373,6 +375,15 @@ async def manejar_respuesta_mini(
             if not acepta:
                 progreso["fallos"] += 1
             await _feedback_privado(sala, jugador, juego, acepta)
+        elif juego == "ppt":
+            # Solo se acepta una mano válida (en minúsculas); el rival nunca
+            # coincide con la mano correcta, así que empatar cuenta como error.
+            if respuesta not in MANOS:
+                return
+            acepta = respuesta == reto["esperado"]
+            if not acepta:
+                progreso["fallos"] += 1
+            await _feedback_privado(sala, jugador, juego, acepta)
         else:
             return
         progreso["fin"] = ahora
@@ -590,6 +601,8 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                             acierto = entregado == reto_esperado
                         else:
                             acierto = False
+                    elif juego == "ppt":
+                        acierto = bool(respuesta) and respuesta[0] == reto["esperado"]
                     else:
                         acierto = bool(respuesta) and progreso.get("total_entregado") == reto["vuelto"]
                     errores = progreso["fallos"]

@@ -26,6 +26,7 @@ from juego.minijuegos import (
     NOMBRES_MINI,
     RONDAS_MINI,
     cargar_frases,
+    mana_para,
     vuelto_optimo,
 )
 
@@ -185,6 +186,14 @@ async def responder(cliente, juego: str, show: dict, write: dict, posiciones: di
         assert not show or frase == show["frase"], (write, show)
         await cliente.enviar(
             {"type": "silabas_answer", "ronda": ronda, "respuesta": TOTALES_SILABAS[frase]}
+        )
+    elif juego == "ppt":
+        await cliente.enviar(
+            {
+                "type": "ppt_answer",
+                "ronda": write["ronda"],
+                "respuesta": mana_para(show["rival"], show["objetivo"]),
+            }
         )
 
 
