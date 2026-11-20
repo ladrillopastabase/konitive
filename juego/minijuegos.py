@@ -1,4 +1,4 @@
-"""Generadores de los siete minijuegos de entrenamiento de Konitive.
+"""Generadores de los ocho minijuegos de entrenamiento de Konitive.
 
 El host genera aquí cada estímulo y guarda la respuesta correcta. El celular
 solo recibe lo que debe mostrar y devuelve una respuesta identificada con el
@@ -24,6 +24,7 @@ JUEGOS_MINI = (
     "memoria",
     "vuelto",
     "silabas",
+    "ppt",
 )
 
 NOMBRES_MINI = {
@@ -34,6 +35,7 @@ NOMBRES_MINI = {
     "memoria": "MEMORIA",
     "vuelto": "DAR VUELTO",
     "silabas": "SÍLABAS",
+    "ppt": "PIEDRA · PAPEL · TIJERA",
 }
 
 RONDAS_MINI = {
@@ -44,6 +46,7 @@ RONDAS_MINI = {
     "memoria": 6,
     "vuelto": 10,
     "silabas": 10,
+    "ppt": 10,
 }
 
 # Juegos que responden dibujando cifras en el componente de escritura ya
@@ -71,6 +74,19 @@ PRODUCTOS = (
     "Chocolate",
     "Queso",
 )
+
+MANOS = ("piedra", "papel", "tijera")
+# Tablas inversas: qué mano sacar para ganarle o perderle a la del rival.
+GANAR_CONTRA = {
+    "piedra": "papel",
+    "papel": "tijera",
+    "tijera": "piedra",
+}
+PERDER_CONTRA = {
+    "piedra": "tijera",
+    "papel": "piedra",
+    "tijera": "papel",
+}
 
 
 def formatear_clp(valor: int) -> str:
@@ -391,6 +407,29 @@ def generar_silabas(ronda: int, frase_anterior: str | None = None) -> dict:
     }
 
 
+# --------------------------------------------------------------------------
+# 8. Piedra, papel o tijera
+# --------------------------------------------------------------------------
+def mana_para(rival: str, objetivo: str) -> str:
+    """Mano que gana o pierde contra la del rival según la consigna."""
+    if objetivo == "ganar":
+        return GANAR_CONTRA[rival]
+    return PERDER_CONTRA[rival]
+
+
+def generar_ppt(ronda: int) -> dict:
+    """Consigna invertida: casi siempre hay que perder a propósito."""
+    rival = random.choice(MANOS)
+    objetivo = "ganar" if ronda % 3 == 1 else "perder"
+    return {
+        "rival": rival,
+        "objetivo": objetivo,
+        "esperado": mana_para(rival, objetivo),
+        "dificultad": "FÁCIL" if ronda <= 3 else ("MEDIA" if ronda <= 7 else "DIFÍCIL"),
+        "ronda": ronda,
+    }
+
+
 def generar(ronda: int, juego: str, anterior=None) -> dict:
     """Punto de entrada único usado por el bucle del servidor."""
     if juego == "stroop":
@@ -407,4 +446,6 @@ def generar(ronda: int, juego: str, anterior=None) -> dict:
         return generar_vuelto(ronda)
     if juego == "silabas":
         return generar_silabas(ronda, anterior)
+    if juego == "ppt":
+        return generar_ppt(ronda)
     raise ValueError(f"Minijuego desconocido: {juego}")
