@@ -33,6 +33,7 @@ TIEMPO_RESPUESTA_MINI = {
     "memoria": 20.0,
     "vuelto": 30.0,
     "silabas": 60.0,
+    "ppt": 4.0,
 }
 SEGUNDOS_POR_ERROR = 5.0
 PUNTOS_MINI_BASE = 1000
@@ -64,12 +65,13 @@ SECRETOS_MINI = {
     "memoria": (),  # la pantalla necesita la grilla; solo los mandos la ocultan
     "vuelto": ("vuelto", "vuelto_texto", "optimo"),
     "silabas": ("silabas", "total", "esperado", "pista"),
+    "ppt": ("esperado",),
 }
 
-# Estos cinco siguen el patrón de HÁMSTERS y CAJAS: el dibujo grande queda en
+# Estos siguen el patrón de HÁMSTERS y CAJAS: el dibujo grande queda en
 # la PC y el celular solo recibe los controles para responder.
 MINIJUEGOS_SOLO_PANTALLA = frozenset(
-    {"stroop", "triangulos", "relojes", "vuelto", "silabas"}
+    {"stroop", "triangulos", "relojes", "vuelto", "silabas", "ppt"}
 )
 VISUAL_MINI = {
     "stroop": ("palabra", "tinta"),
@@ -77,6 +79,7 @@ VISUAL_MINI = {
     "relojes": ("reloj1", "reloj2", "periodo1", "periodo2"),
     "vuelto": ("producto", "precio_texto", "pago_texto"),
     "silabas": ("frase",),
+    "ppt": ("rival", "objetivo"),
 }
 
 
@@ -120,6 +123,7 @@ def datos_para_resultado(juego: str, reto: dict) -> dict:
         "memoria": ("grilla", "posiciones", "cantidad"),
         "vuelto": ("producto", "precio_texto", "pago_texto", "vuelto_texto", "optimo"),
         "silabas": ("frase", "silabas", "pista", "total"),
+        "ppt": ("rival", "objetivo", "esperado"),
     }[juego]
     return {clave: reto[clave] for clave in claves}
 

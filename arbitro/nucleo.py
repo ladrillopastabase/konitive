@@ -23,9 +23,13 @@ CLAVES_SOLO_PANTALLA = frozenset(
 
 
 JUEGOS = ("pajaros", "escritura")
-# Fiesta: los juegos clásicos más los siete minijuegos de entrenamiento.
-# El host es la pantalla y hay hasta 8 mandos.
-JUEGOS_FIESTA = ("pajaros", "escritura", "cajas", "operaciones") + JUEGOS_MINI
+# Fiesta: los juegos clásicos más los ocho minijuegos de entrenamiento.
+# El host es la pantalla y hay hasta 8 mandos. «ppt» cierra la lista; se filtra
+# de JUEGOS_MINI antes de añadirlo para no duplicarlo (JUEGOS_INDIVIDUAL usa
+# esta misma tupla y recorrería el juego dos veces).
+JUEGOS_FIESTA = ("pajaros", "escritura", "cajas", "operaciones") + tuple(
+    j for j in JUEGOS_MINI if j != "ppt"
+) + ("ppt",)
 NOMBRES_JUEGOS = {
     "pajaros": "HÁMSTERS",
     "escritura": "PALABRAS",
