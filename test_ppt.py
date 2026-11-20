@@ -266,18 +266,22 @@ async def probar_ppt_fiesta_no_filtra_la_respuesta() -> None:
     shows = []
     for ronda in range(3):
         show_pantalla = await host.esperar("ppt_show", desde=ronda)
+        assert show_pantalla["ronda"] == ronda + 1, show_pantalla
         shows.append(show_pantalla)
         assert {"rival", "objetivo"} <= show_pantalla.keys(), show_pantalla
         assert "esperado" not in show_pantalla, show_pantalla
         write_pantalla = await host.esperar("ppt_write", desde=ronda)
+        assert write_pantalla["ronda"] == ronda + 1, write_pantalla
         assert {"rival", "objetivo"} <= write_pantalla.keys(), write_pantalla
         assert "esperado" not in write_pantalla, write_pantalla
         mano = mana_para(show_pantalla["rival"], show_pantalla["objetivo"])
         for mando in mandos:
             show_mando = await mando.esperar("ppt_show", desde=ronda)
+            assert show_mando["ronda"] == ronda + 1, show_mando
             assert not ({"rival", "objetivo", "esperado"} & show_mando.keys()), show_mando
             assert show_mando.get("mira") is True, show_mando
             write_mando = await mando.esperar("ppt_write", desde=ronda)
+            assert write_mando["ronda"] == ronda + 1, write_mando
             assert "esperado" not in write_mando, write_mando
             await mando.enviar(
                 {
@@ -287,12 +291,14 @@ async def probar_ppt_fiesta_no_filtra_la_respuesta() -> None:
                 }
             )
         result_pantalla = await host.esperar("ppt_result", desde=ronda)
+        assert result_pantalla["ronda"] == ronda + 1, result_pantalla
         assert (
             result_pantalla["reto"]["esperado"]
             == mana_para(show_pantalla["rival"], show_pantalla["objetivo"])
         ), result_pantalla
         for mando in mandos:
             result_mando = await mando.esperar("ppt_result", desde=ronda)
+            assert result_mando["ronda"] == ronda + 1, result_mando
             assert set(result_mando) <= {"type", "ronda"}, result_mando
 
     consignas = {show["objetivo"] for show in shows}
