@@ -39,7 +39,7 @@
   let rondaClasica = 1;
 
   const JUEGOS_MINI = [
-    "stroop", "triangulos", "relojes", "menor", "memoria", "vuelto", "silabas",
+    "stroop", "triangulos", "relojes", "menor", "memoria", "vuelto", "silabas", "ppt",
   ];
   const NOMBRES_MINI = {
     stroop: "STROOP",
@@ -49,6 +49,7 @@
     memoria: "MEMORIA",
     vuelto: "DAR VUELTO",
     silabas: "SÍLABAS",
+    ppt: "PIEDRA · PAPEL · TIJERA",
   };
   // Fiesta: juegos que el anfitrión encadena, con rondas y dificultad propias.
   const JUEGOS_FIESTA = ["pajaros", "escritura", "cajas", "operaciones", ...JUEGOS_MINI];
@@ -1239,6 +1240,14 @@
     if (juego === "silabas") {
       return datos.frase ? `<div class="frase-silabas">${escapeHtml(datos.frase.toUpperCase())}</div>` : "";
     }
+    if (juego === "ppt") {
+      if (!datos.rival) return "";
+      const gana = datos.objetivo === "ganar";
+      return `<div class="ppt-visual">
+        <div class="ppt-rival">RIVAL · <b>${escapeHtml(datos.rival.toUpperCase())}</b></div>
+        <div class="ppt-consigna ${gana ? "ppt-ganar" : "ppt-perder"}">${gana ? "GANAR" : "PERDER"}</div>
+      </div>`;
+    }
     return "";
   }
 
@@ -1309,6 +1318,9 @@
     } else if (juego === "silabas") {
       cuerpo = [visualMini(juego, msg),
         '<p class="pista">Cuenta las sílabas gramaticales de toda la frase, palabra por palabra.</p>'];
+    } else if (juego === "ppt") {
+      cuerpo = [visualMini(juego, msg),
+        '<p class="pista">Elige la mano que cumpla la consigna contra el rival</p>'];
     }
     // [visual, abajo]; menor a mayor ya tiene su propio campo a lo ancho.
     $("contenido").innerHTML = Array.isArray(cuerpo)
@@ -1555,11 +1567,40 @@
         e.currentTarget.disabled = true;
         enviar({ type: "vuelto_answer", ronda: msg.ronda, respuesta: { ...elegidos } });
       });
+    } else if (juego === "ppt") {
+      // En FIESTA el mando solo recibe {"mira": true}: la mano del rival y la
+      // consigna viven en la pantalla del anfitrión. En INDIVIDUAL llegan en el
+      // ppt_write y se muestran aquí mismo.
+      const visual = mando
+        ? miraPantallaHtml("MIRA LA PANTALLA · ELIGE TU MANO")
+        : visualMini("ppt", msg);
+      $("contenido").innerHTML = panelAmplio(
+        '<p class="kicker">ELIGE LA MANO QUE CUMPLA LA CONSIGNA</p>',
+        visual,
+        `<p class="pista">${mando
+          ? "Mira la pantalla y elige tu mano aquí."
+          : "Elige la mano que gane o pierda contra el rival según la consigna."}</p>
+        <div class="ppt-botones">
+          ${["piedra", "papel", "tijera"].map((mano) =>
+            `<button type="button" class="boton ppt-opcion" data-mano="${mano}">${mano.toUpperCase()}</button>`
+          ).join("")}
+        </div>
+        <div class="mini-progreso" id="mini-progreso"></div>`,
+        "respuesta-ppt"
+      );
+      $("contenido").querySelectorAll("[data-mano]").forEach((boton) => {
+        boton.addEventListener("click", () => {
+          desactivarOpciones("ppt");
+          enviar({ type: "ppt_answer", ronda: msg.ronda, respuesta: boton.dataset.mano });
+        });
+      });
     }
   }
 
   function desactivarOpciones(juego) {
-    const selector = juego === "stroop" ? "[data-color]" : "[data-indice], [data-celda]";
+    const selector = juego === "stroop" ? "[data-color]"
+      : juego === "ppt" ? "[data-mano]"
+      : "[data-indice], [data-celda]";
     $("contenido").querySelectorAll(selector).forEach((boton) => (boton.disabled = true));
   }
 
@@ -1647,6 +1688,15 @@
         .map(([d, n]) => `$${Number(d).toLocaleString("es-CL")} × ${n}`)
         .join(" · ");
       return `<div class="mini-respuesta">VUELTO <b>${escapeHtml(reto.vuelto_texto || "")}</b><br><span class="pista">ÓPTIMO: ${escapeHtml(optimo)}</span></div>`;
+    }
+    if (juego === "ppt") {
+      const gana = reto.objetivo === "ganar";
+      const consigna = gana ? "GANAR" : "PERDER";
+      return `<div class="mini-respuesta ppt-respuesta">
+        <div class="ppt-rival">RIVAL · <b>${escapeHtml((reto.rival || "").toUpperCase())}</b></div>
+        <div class="ppt-consigna ${gana ? "ppt-ganar" : "ppt-perder"}">${consigna}</div>
+        <div>MANO CORRECTA · <b>${escapeHtml((reto.esperado || "").toUpperCase())}</b></div>
+      </div>`;
     }
     return `<div class="mini-respuesta">${escapeHtml(reto.pista || "")} = <b>${reto.total || 0} SÍLABAS</b></div>`;
   }

@@ -1114,6 +1114,59 @@ input::placeholder { color: #a39b8c; }
 .stroop-opcion[data-color="verde"] { border-color: #246b58; color: #246b58; }
 .stroop-opcion[data-color="amarillo"] { border-color: #a87300; color: #a87300; }
 
+/* Piedra · Papel · Tijera: ficha de consigna invertida, papel y tinta sin redondez. */
+.ppt-visual { display: flex; flex-direction: column; align-items: center; gap: var(--v-2); width: 100%; }
+.ppt-rival {
+  font-family: var(--mono);
+  font-size: clamp(13px, 2vh, 17px);
+  letter-spacing: .14em;
+  font-weight: 700;
+  color: var(--tinta-suave);
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  padding: 10px 16px;
+}
+.ppt-rival b { font-family: var(--display); color: var(--tinta); letter-spacing: 0; }
+.ppt-consigna {
+  font-family: var(--display);
+  font-size: clamp(36px, min(11vw, 12vh), 84px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+  text-align: center;
+  text-transform: uppercase;
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  box-shadow: 6px 6px 0 var(--tinta);
+  padding: var(--v-2);
+}
+.ppt-consigna.ppt-ganar { color: var(--verde); box-shadow: 6px 6px 0 var(--verde); }
+.ppt-consigna.ppt-perder { color: var(--rojo); box-shadow: 6px 6px 0 var(--rojo); }
+.ppt-botones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--v-2);
+  width: min(100%, 560px);
+  margin-top: var(--v-2);
+}
+.ppt-opcion {
+  min-height: 56px;
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  color: var(--tinta);
+  box-shadow: 4px 4px 0 var(--tinta);
+  font-size: clamp(14px, 2.4vh, 18px);
+  font-weight: 800;
+}
+.ppt-opcion:hover:not(:disabled) { background: var(--papel-oscuro); }
+.ppt-opcion:focus-visible { outline: 3px solid var(--rojo); outline-offset: 2px; }
+.ppt-respuesta .ppt-consigna { font-size: clamp(24px, 4vh, 40px); }
+.ppt-respuesta .ppt-consigna.ppt-ganar { box-shadow: 4px 4px 0 var(--verde); }
+.ppt-respuesta .ppt-consigna.ppt-perder { box-shadow: 4px 4px 0 var(--rojo); }
+
 /* Triángulos: rejilla 5 columnas + rótulo; las flechas unen cada par con su casilla. */
 .triangulo {
   display: grid;

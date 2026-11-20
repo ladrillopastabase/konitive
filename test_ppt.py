@@ -11,6 +11,7 @@ import asyncio
 import json
 import threading
 import time
+from pathlib import Path
 
 import uvicorn
 import websockets
@@ -25,6 +26,18 @@ from arbitro.minijuegos import (
     MINIJUEGOS_SOLO_PANTALLA, SECRETOS_MINI, TIEMPO_RESPUESTA_MINI,
     VISUAL_MINI, datos_para_resultado, estimulo_para_mando, visual_mini,
 )
+
+BASE = Path(__file__).parent
+
+
+def probar_cliente_incluye_ppt_en_selector_y_mensajes():
+    html = (BASE / "static/index.html").read_text(encoding="utf-8")
+    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
+    assert 'data-juego="ppt"' in html
+    assert '"ppt"' in js
+    assert "ppt_answer" in js
+    assert ".ppt-opcion" in css
 
 
 async def pausa_corta(sala, segundos):
@@ -231,6 +244,8 @@ async def probar_ppt_ignora_respuestas_invalidas_y_empate() -> None:
 
 
 async def main() -> None:
+    probar_cliente_incluye_ppt_en_selector_y_mensajes()
+    print("Cliente: selector y mensajes de ppt presentes")
     probar_manos_ganan_y_pierden_contra_cada_rival()
     print("Manos: ganar y perder contra cada rival correctos")
     probar_generar_ppt_cumple_la_consigna_y_nunca_empata()
