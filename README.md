@@ -3,14 +3,15 @@
 Juego de entrenamiento cerebral inspirado en los minijuegos del Dr. Kawashima.
 Nombres sencillos: **PÁJAROS**, **PALABRAS**, **CAJAS**, **OPERACIONES**,
 **STROOP**, **TRIÁNGULOS**, **RELOJES**, **MENOR A MAYOR**, **MEMORIA**,
-**DAR VUELTO**, **SÍLABAS**, **INDIVIDUAL** y **FIESTA**.
+**DAR VUELTO**, **SÍLABAS**, **PIEDRA · PAPEL · TIJERA**, **INDIVIDUAL** y
+**FIESTA**.
 
 - **ABRIR SALA / UNIRSE**: duelo de dos personas a PÁJAROS y PALABRAS, mejor de
   3 victorias por juego.
-- **INDIVIDUAL**: un solo botón para entrenar solo. Elige una, varias o las 11
+- **INDIVIDUAL**: un solo botón para entrenar solo. Elige una, varias o las 12
   pruebas y se juegan unas detrás de otras con un resumen final común.
 - **FIESTA**: una pantalla (quien crea la sala) y hasta 8 mandos en celulares,
-  con los 11 juegos y un podio que se actualiza entre juegos.
+  con los 12 juegos y un podio que se actualiza entre juegos.
 
 ## Instalación
 
@@ -87,17 +88,17 @@ ngrok http 6767
 ## MODO INDIVIDUAL
 
 En la pantalla inicial, **INDIVIDUAL** sustituye a los antiguos botones de
-práctica, cajas y operaciones. Al pulsarlo se abre un selector con las 11
-pruebas: los cuatro juegos clásicos y los siete minijuegos de entrenamiento:
+práctica, cajas y operaciones. Al pulsarlo se abre un selector con las 12
+pruebas: los cuatro juegos clásicos y los ocho minijuegos de entrenamiento:
 
-- **JUGAR TODOS** marca las 11 pruebas; **QUITAR TODOS** las desmarca.
+- **JUGAR TODOS** marca las 12 pruebas; **QUITAR TODOS** las desmarca.
 - También se puede marcar una sola o cualquier subconjunto. Cada botón se
   ilumina al seleccionarlo y **EMPEZAR** permanece desactivado hasta que haya
   al menos una prueba elegida.
 - Las pruebas se juegan **una detrás de otra** en este orden fijo: PÁJAROS →
   PALABRAS → CAJAS → OPERACIONES → STROOP → TRIÁNGULOS → RELOJES → MENOR A
-  MAYOR → MEMORIA → DAR VUELTO → SÍLABAS (solo las marcadas). Antes de cada una
-  se ve una pantalla «JUEGO 2 / 11» con su nombre.
+  MAYOR → MEMORIA → DAR VUELTO → SÍLABAS → PIEDRA · PAPEL · TIJERA (solo las
+  marcadas). Antes de cada una se ve una pantalla «JUEGO 2 / 12» con su nombre.
 - Al terminar la última aparece un **informe final** con una tarjeta por prueba
   (puntos y detalle), la suma total y botones de **REPETIR** (misma selección) y
   **VOLVER AL INICIO**. Durante la secuencia no aparecen los informes
@@ -151,7 +152,7 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
   El informe de cada ronda muestra `cifras + rapidez = total`.
 - La mejor marca se guarda en `localStorage` (`konitive_operaciones_record`).
 
-## LOS SIETE MINIJUEGOS
+## LOS OCHO MINIJUEGOS
 
 Disponibles en INDIVIDUAL y FIESTA. El servidor genera cada estímulo, guarda la
 respuesta correcta, cronometra y valida; el celular solo muestra y envía. El
@@ -216,11 +217,20 @@ con su separación silábica validada: al unir las sílabas se reconstruye la fr
 ignorando espacios y mayúsculas. Dificultad creciente por longitud de frase y
 número de sílabas.
 
+### PIEDRA · PAPEL · TIJERA
+
+10 rondas. La pantalla muestra la mano del rival y una consigna: **GANAR** o
+**PERDER**. Hay que responder con una mano que gane o que pierda a propósito
+contra la del rival; la mano del rival nunca es una respuesta válida. La
+consigna **PERDER** aparece 2 de cada 3 rondas, así que hay que leerla antes de
+tocar. Se responde en **4 s**, con el mismo Brain Age de los demás minijuegos
+(`tiempo total + 5 segundos por error`).
+
 ## FIESTA
 
 Una persona crea la sala y es la **pantalla**; las demás entran desde el QR con
 su celular y son **mandos** (hasta 8). El anfitrión elige el juego en el lobby:
-los cuatro clásicos y los siete minijuegos anteriores.
+los cuatro clásicos y los ocho minijuegos anteriores.
 
 - La pantalla muestra lo que hay que ver o memorizar; los mandos ven solo sus
   propios controles y pistas. La pantalla **no es participante**: aparece como
@@ -257,7 +267,7 @@ los cuatro clásicos y los siete minijuegos anteriores.
   mandos y podio animado con WAAPI.
 - **Generadores** (`juego/palabras.py`, `juego/cajas.py`, `juego/operaciones.py`,
   `juego/minijuegos.py`): palabras, mapas de altura de cajas, operaciones de 0 a
-  99 y los estímulos de los siete minijuegos. El corpus de sílabas vive en
+  99 y los estímulos de los ocho minijuegos. El corpus de sílabas vive en
   `juego/frases_silabas.json`.
 
 ## Reglas de PÁJAROS y PALABRAS
@@ -291,7 +301,8 @@ python test_operaciones.py   # generación, cifras manuscritas y fiesta sin enun
 python test_salas.py         # QR, unión por código, roles, aforo y podio
 python test_individual.py    # uno/varios/todos, orden, resumen y repetición
 python test_silabas.py       # corpus de 63 frases y separación silábica válida
-python test_minijuegos.py    # los siete minijuegos en individual y fiesta
+python test_minijuegos.py    # los ocho minijuegos en individual y fiesta
+python test_ppt.py           # piedra papel tijera: generador, individual y fiesta
 python test_revision.py      # memoria, vuelto con trampas, envío doble y tope de salas
 
 node --check static/app.js   # sintaxis del cliente
