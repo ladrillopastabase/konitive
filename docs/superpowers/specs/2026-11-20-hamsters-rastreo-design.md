@@ -87,6 +87,11 @@ La dificultad debe controlar independientemente:
 - Intervalo entre entradas.
 - Velocidad de las animaciones.
 
+La dificultad **progresa una vez por ronda** a lo largo de `facil → normal →
+dificil → experto`, con tope en experto. En INDIVIDUAL el punto de partida es
+`facil` y se alcanza experto en la cuarta ronda; en FIESTA lo fija el anfitrión.
+La etiqueta del nivel se muestra en pantalla.
+
 ## 6. Componentes técnicos
 
 Separar la lógica del juego en los siguientes componentes:

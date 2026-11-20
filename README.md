@@ -157,7 +157,7 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
 
 Disponibles en INDIVIDUAL y FIESTA. El servidor genera cada estímulo, guarda la
 respuesta correcta, cronometra y valida; el celular solo muestra y envía. El
-feedback es **verde** al acertar y **rojo** al fallar, tanto en la pantalla como
+feedback es **verde** al acertar y **rosa** al fallar, tanto en la pantalla como
 en el mando.
 
 La puntuación es el **Brain Age**: `tiempo total + 5 segundos por error`
@@ -225,9 +225,12 @@ idénticos, en cuatro fases: **observación** (memorizas sus casillas),
 **movimiento** (sigues filas y columnas completas que entran por los cuatro
 lados, con las identidades ocultas tras `?`), **identificación** (señalas las
 dos casillas finales) y **resultados** (aciertos, precisión y Brain Age). Cuatro
-niveles: **fácil**, **normal**, **difícil** y **experto** (este último solo en
-FIESTA). Es un juego dedicado con protocolo propio: la pantalla ve el tablero y
-el resultado, y los mandos nunca reciben las posiciones de los hámsters.
+niveles: **fácil**, **normal**, **difícil** y **experto**. La dificultad sube un
+nivel por ronda: en INDIVIDUAL las 6 rondas van fácil → normal → difícil →
+experto (y se mantiene experto); en FIESTA el nivel elegido es el punto de
+partida. La etiqueta del nivel se muestra en pantalla. Es un juego dedicado con
+protocolo propio: la pantalla ve el tablero y el resultado, y los mandos nunca
+reciben las posiciones de los hámsters.
 
 ### PIEDRA · PAPEL · TIJERA
 

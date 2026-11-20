@@ -1,13 +1,15 @@
 ---
 name: Konitive · Laboratorio de Atención
-description: Cuaderno de laboratorio de papel y tinta con un solo acento rojo para entrenamiento cerebral.
+description: Cuaderno de laboratorio de papel y tinta con un solo acento rosa para entrenamiento cerebral.
 colors:
   papel: "#efe9dc"
   papel-claro: "#f9f5ea"
   papel-oscuro: "#ded4c1"
   tinta: "#1c1a17"
   tinta-suave: "#5f594e"
-  rojo: "#d33827"
+  rosa: "#F7D1D1"
+  rosa-borde: "#bd6b80"
+  rosa-tinta: "#8c3b52"
   verde: "#246b58"
   blanco: "#ffffff"
 typography:
@@ -38,8 +40,8 @@ spacing:
   v-3: "clamp(18px, 3dvh, 30px)"
   v-4: "clamp(26px, 5dvh, 48px)"
 components:
-  boton-rojo:
-    backgroundColor: "{colors.rojo}"
+  boton-rosa:
+    backgroundColor: "{colors.rosa}"
     textColor: "{colors.blanco}"
     rounded: "{rounded.none}"
     padding: "clamp(11px, 1.8vh, 14px) 18px"
@@ -91,16 +93,16 @@ components:
 
 **Creative North Star: "El Cuaderno de Laboratorio"**
 
-Konitive se lee como una ficha de laboratorio impresa en papel rayado: tinta negra, márgenes estrechos, etiquetas en mayúsculas y un único acento rojo que reserva para lo que manda atender. La voz es precisa, táctil y con un humor seco: no explica de más, no adorna y confía en que el número grande y el sello inclinado digan lo suficiente. Cada pantalla parece una hoja recién sacada del cuaderno, con sus perforaciones, sus rayas y su sello.
+Konitive se lee como una ficha de laboratorio impresa en papel rayado: tinta negra, márgenes estrechos, etiquetas en mayúsculas y un único acento rosa que reserva para lo que manda atender. La voz es precisa, táctil y con un humor seco: no explica de más, no adorna y confía en que el número grande y el sello inclinado digan lo suficiente. Cada pantalla parece una hoja recién sacada del cuaderno, con sus perforaciones, sus rayas y su sello.
 
 El sistema es deliberadamente plano. No hay degradados, desenfoques ni transparencias decorativas: la profundidad se construye apilando papel con sombras duras de desplazamiento y cero desenfoque, y la interacción se siente física porque el botón se hunde y su sombra desaparece al presionarlo. La densidad es alta (11 pruebas, podios, marcadores) pero el ritmo vertical único (`--v-1` a `--v-4`, en `dvh`) mantiene la composición estable entre un teléfono de 320px y una TV de 1080p.
 
-La identidad es patrimonio del código existente: este documento la describe, no la sustituye. Lo que se conserva es el papel, la tinta, el rojo de sello y la ausencia de redondez. Lo que se evita es cualquier superficie que parezca una app genérica de tarjetas flotantes.
+La identidad es patrimonio del código existente: este documento la describe, no la sustituye. Lo que se conserva es el papel, la tinta, el rosa de sello y la ausencia de redondez. Lo que se evita es cualquier superficie que parezca una app genérica de tarjetas flotantes.
 
 **Key Characteristics:**
 
 - Papel rayado de fondo y superficies de ficha, siempre en tonos crema.
-- Un solo acento cálido: rojo de sello para acciones, números que mandan y errores.
+- Un solo acento cálido: rosa de sello para acciones, números que mandan y errores.
 - Verde reservado a la confirmación: acierto, conectado, listo.
 - Sombras duras sin desenfoque; presionar elimina la sombra.
 - Esquinas rectas por defecto; círculos solo para sellos, perforaciones y puntos de estado.
@@ -109,11 +111,11 @@ La identidad es patrimonio del código existente: este documento la describe, no
 
 ## Colors
 
-La paleta es papel, tinta y un sello rojo; el verde aparece únicamente cuando algo está bien.
+La paleta es papel, tinta y un sello rosa; el verde aparece únicamente cuando algo está bien.
 
 ### Primary
 
-- **Rojo de Sello** (#d33827): tinta de estampilla. Vive en el botón principal, la barra inferior de la cabecera, el número del vuelto y del conteo final, el flash de PALABRAS, los sellos inclinados y el borde del primer puesto del podio. Es el color que manda mirar.
+- **Rosa de Sello** (#F7D1D1): tinta de estampilla. Vive en el botón principal, la barra inferior de la cabecera, el número del vuelto y del conteo final, el flash de PALABRAS, los sellos inclinados y el borde del primer puesto del podio. Es el color que manda mirar.
 
 ### Secondary
 
@@ -128,7 +130,7 @@ La paleta es papel, tinta y un sello rojo; el verde aparece únicamente cuando a
 - **Tinta Suave** (#5f594e): etiquetas, pistas y desgloses que acompañan sin competir.
 - **Blanco de Lienzo** (#ffffff): fondo de inputs, del área de dibujo y del valor del stepper.
 
-**The One Accent Rule.** El rojo es el único acento cálido y se usa para mandar, no para decorar: si una pantalla tiene varios rojos, ninguno manda. El verde confirma y no compite con él.
+**The One Accent Rule.** El rosa es el único acento cálido y se usa para mandar, no para decorar: si una pantalla tiene varios rojos, ninguno manda. El verde confirma y no compite con él.
 
 **The Ink-and-Paper Rule.** Toda superficie es papel y toda línea es tinta. No se introducen degradados ni transparencias decorativas; el único patrón es el rayado del cuaderno.
 
@@ -167,34 +169,34 @@ El sistema es plano por defecto y construye profundidad exclusivamente con sombr
 ### Shadow Vocabulary
 
 - **Sombra de ficha** (`box-shadow: 6px 6px 0 var(--tinta)`): paneles, fichas de inscripción, ticket y contenedores principales.
-- **Sombra de botón rojo** (`4px 4px 0 var(--tinta)`): acción principal.
-- **Sombra de botón oscuro** (`4px 4px 0 var(--rojo)`): acción secundaria sobre papel.
+- **Sombra de botón rosa** (`4px 4px 0 var(--tinta)`): acción principal.
+- **Sombra de botón oscuro** (`4px 4px 0 var(--rosa-borde)`): acción secundaria sobre papel.
 - **Sombra de contorno** (`4px 4px 0 var(--papel-oscuro)`): acción terciaria y tiles de juego.
-- **Sombra de foco** (`3px 3px 0 var(--rojo)`): input enfocado.
-- **Sombra de sello** (`4px 4px 0 var(--rojo)`): retrato, QR y avisos.
-- **Sombra de resultado** (`5px 5px 0 var(--rojo)`): el conteo final.
+- **Sombra de foco** (`3px 3px 0 var(--rosa-borde)`): input enfocado.
+- **Sombra de sello** (`4px 4px 0 var(--rosa-borde)`): retrato, QR y avisos.
+- **Sombra de resultado** (`5px 5px 0 var(--rosa-borde)`): el conteo final.
 
 **The Cut-Paper Rule.** Toda sombra es un desplazamiento duro sin desenfoque. Si un elemento no tiene sombra, está en reposo, desactivado o siendo presionado; nunca se inventa una sombra suave para dar profundidad.
 
 ## Shapes
 
-Las esquinas son rectas (`border-radius: 0`) en botones, inputs, paneles, tickets, fichas y tableros. El borde normativo es de 2px de tinta; los separadores usan `3px double` y la cabecera de ronda lleva 3px de rojo a cada lado. Las únicas formas redondas son funcionales: las perforaciones del ticket (círculos de 16px), el punto de conexión (8px), el sello grande del diploma (84px doble borde) y el único heredado `border-radius: 12px` del cartel de pago de DAR VUELTO. Los sellos se rotan entre -4° y -9° para parecer estampados a mano.
+Las esquinas son rectas (`border-radius: 0`) en botones, inputs, paneles, tickets, fichas y tableros. El borde normativo es de 2px de tinta; los separadores usan `3px double` y la cabecera de ronda lleva 3px de rosa a cada lado. Las únicas formas redondas son funcionales: las perforaciones del ticket (círculos de 16px), el punto de conexión (8px), el sello grande del diploma (84px doble borde) y el único heredado `border-radius: 12px` del cartel de pago de DAR VUELTO. Los sellos se rotan entre -4° y -9° para parecer estampados a mano.
 
 ## Components
 
 ### Buttons
 
 - **Shape:** esquinas rectas (0px), borde de 2px de tinta, ancho completo salvo la variante `chico`.
-- **Primary:** rojo de sello sobre blanco con sombra `4px 4px 0` de tinta; padding `clamp(11px, 1.8vh, 14px) 18px`; display uppercase 13px.
+- **Primary:** rosa de sello sobre blanco con sombra `4px 4px 0` de tinta; padding `clamp(11px, 1.8vh, 14px) 18px`; display uppercase 13px.
 - **Dark:** tinta sobre papel claro con sombra roja. **Outline:** transparente sobre papel, sombra de papel oscuro, y al hover el fondo pasa a papel oscuro.
-- **Hover / Focus:** el hover levanta 1px y aumenta la sombra a 5px; el foco visible marca `outline: 3px solid var(--rojo)` con `outline-offset: 2px`.
+- **Hover / Focus:** el hover levanta 1px y aumenta la sombra a 5px; el foco visible marca `outline: 3px solid var(--rosa-borde)` con `outline-offset: 2px`.
 - **Pressed:** `translate(3px, 3px)` y `box-shadow: none`. Es el gesto táctil canónico.
 
 ### Chips y fichas
 
-- **Ficha de jugador:** papel claro, borde de tinta, padding `10px 14px`, número y rol en mono; el rol va en rojo. Vacía es borde discontinuo y sin fondo.
+- **Ficha de jugador:** papel claro, borde de tinta, padding `10px 14px`, número y rol en mono; el rol va en rosa. Vacía es borde discontinuo y sin fondo.
 - **Ficha de pantalla:** borde discontinuo, fondo transparente, texto de tinta suave: la pantalla está presente pero no puntúa.
-- **Sellos:** borde de 3px en rojo o verde, texto display en minúsculas rotado, para «GANADOR», rachas o resultados.
+- **Sellos:** borde de 3px en rosa o verde, texto display en minúsculas rotado, para «GANADOR», rachas o resultados.
 
 ### Cards / Containers
 
@@ -207,23 +209,23 @@ Las esquinas son rectas (`border-radius: 0`) en botones, inputs, paneles, ticket
 ### Inputs / Fields
 
 - **Style:** fondo blanco, borde de 2px de tinta, radio 0, 16px mínimo para evitar zoom en iOS.
-- **Focus:** `box-shadow: 3px 3px 0 var(--rojo)` y `outline: none`.
-- **Placeholder:** tinta suave; el error va en rojo debajo del campo.
+- **Focus:** `box-shadow: 3px 3px 0 var(--rosa-borde)` y `outline: none`.
+- **Placeholder:** tinta suave; el error va en rosa debajo del campo.
 
 ### Navigation
 
-- **Barra superior:** fondo de tinta, texto de papel claro en mono de 11px con tracking `.13em`, borde inferior de 3px rojo, sello «K» rojo de 24px a la izquierda. El subtexto se oculta por debajo de 780px. Los botones SALIR y SONIDO van en contorno de 1px.
+- **Barra superior:** fondo de tinta, texto de papel claro en mono de 11px con tracking `.13em`, borde inferior de 3px rosa, sello «K» rosa de 24px a la izquierda. El subtexto se oculta por debajo de 780px. Los botones SALIR y SONIDO van en contorno de 1px.
 
 ### Stepper de conteo
 
 - Botones laterales de papel oscuro con display de 28–40px, valor central blanco de 32–52px, todos con 2px de borde y mínimo 58px de alto.
-- Hover del botón: fondo rojo y texto blanco; deshabilitado al 40% de opacidad.
+- Hover del botón: fondo rosa y texto tinta; deshabilitado al 40% de opacidad.
 - Aparece solo en los mandos: la pantalla de la fiesta es espectadora y no cuenta.
 
 ### Fila de podio
 
 - Papel claro, borde de 2px, sombra `3px 3px 0` de papel oscuro; el primer puesto sube a borde y sombra rojos de 3px y 4px.
-- Puesto en display de 24px, nombre en negrita, puntos en display de 22px, movimiento en mono verde si sube y rojo si baja.
+- Puesto en display de 24px, nombre en negrita, puntos en display de 22px, movimiento en mono verde si sube y rosa si baja.
 
 ## Do's and Don'ts
 

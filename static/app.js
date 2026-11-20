@@ -21,6 +21,7 @@
   let juegoFiesta = null;
   let inviteUrl = "";
   let podioActual = [];
+  let misPuntos = null;
   let ultimaPila = [];
   let animacion = null;
   let cuentaTimer = null;
@@ -111,11 +112,18 @@
 
   // Un desplazamiento a la vez: animar() cancela el temporizador anterior y
   // detenerTimers() retira cualquier clase que haya quedado sobre el tablero.
+  const CURVA_RASTREO = "cubic-bezier(0.16, 1, 0.3, 1)";
   const AnimationController = {
     temporizador: null,
+    sprite: null,
+    animacionSprite: null,
     detener() {
       if (this.temporizador) clearTimeout(this.temporizador);
       this.temporizador = null;
+      if (this.animacionSprite) this.animacionSprite.cancel();
+      this.animacionSprite = null;
+      if (this.sprite) this.sprite.remove();
+      this.sprite = null;
       $("contenido")?.querySelectorAll(".rastreo-casilla").forEach((celda) => {
         CLASES_ENTRADA.forEach((clase) => celda.classList.remove(clase));
       });
@@ -130,7 +138,8 @@
       const linea = Number(movimiento.linea);
       const clase = `rastreo-entrada-${movimiento.lado}`;
       const horizontal = movimiento.lado === "izquierda" || movimiento.lado === "derecha";
-      const afectadas = [...tablero.querySelectorAll(".rastreo-casilla")].filter((_, i) =>
+      const celdas = [...tablero.querySelectorAll(".rastreo-casilla")];
+      const afectadas = celdas.filter((_, i) =>
         horizontal ? Math.floor(i / 4) === linea : i % 4 === linea
       );
       afectadas.forEach((celda) => celda.classList.add(clase));
@@ -138,6 +147,87 @@
         afectadas.forEach((celda) => celda.classList.remove(clase));
         this.temporizador = null;
       }, duracion * 1000);
+      if (
+        Number.isInteger(movimiento.salida) && Number.isInteger(movimiento.reaparecio) &&
+        duracion > 0
+      ) {
+        this.animarHamster(tablero, celdas, movimiento, duracion);
+      }
+    },
+    // El mismo sprite cruza el borde por la salida y vuelve a entrar por el
+    // borde más cercano a su nueva casilla. Se retira al terminar: el tablero
+    // vuelve a mostrar incógnitas, sin revelar el id del hámster.
+    animarHamster(tablero, celdas, movimiento, duracion) {
+      const origen = celdas[movimiento.salida];
+      const destino = celdas[movimiento.reaparecio];
+      if (!origen || !destino) return;
+      const estilo = getComputedStyle(tablero);
+      const gapX = parseFloat(estilo.columnGap) || 0;
+      const gapY = parseFloat(estilo.rowGap) || 0;
+      const pasoX = origen.offsetWidth + gapX;
+      const pasoY = origen.offsetHeight + gapY;
+      const [pelo, panza] = PELAJES[0];
+      const sprite = document.createElement("span");
+      sprite.className = "rastreo-hamster";
+      sprite.innerHTML = `<span class="rastreo-ave" style="--pelo:${pelo};--panza:${panza}">${AVE_SVG}</span>`;
+      sprite.style.left = `${origen.offsetLeft}px`;
+      sprite.style.top = `${origen.offsetTop}px`;
+      sprite.style.width = `${origen.offsetWidth}px`;
+      sprite.style.height = `${origen.offsetHeight}px`;
+      if (typeof sprite.animate !== "function") return;
+      tablero.appendChild(sprite);
+      this.sprite = sprite;
+
+      const lado = movimiento.lado;
+      const inicio = {
+        izquierda: [-pasoX, 0], derecha: [pasoX, 0],
+        arriba: [0, -pasoY], abajo: [0, pasoY],
+      }[lado];
+      const salida = {
+        izquierda: [pasoX, 0], derecha: [-pasoX, 0],
+        arriba: [0, pasoY], abajo: [0, -pasoY],
+      }[lado];
+      const col = movimiento.reaparecio % 4;
+      const fila = Math.floor(movimiento.reaparecio / 4);
+      const borde = [
+        [col, "izquierda"], [3 - col, "derecha"],
+        [fila, "arriba"], [2 - fila, "abajo"],
+      ].sort((a, b) => a[0] - b[0])[0][1];
+      const reingreso = {
+        izquierda: [-pasoX, destino.offsetTop],
+        derecha: [tablero.clientWidth + gapX, destino.offsetTop],
+        arriba: [destino.offsetLeft, -pasoY],
+        abajo: [destino.offsetLeft, tablero.clientHeight + gapY],
+      }[borde];
+      const dxFinal = destino.offsetLeft - origen.offsetLeft;
+      const dyFinal = destino.offsetTop - origen.offsetTop;
+      const dxReingreso = reingreso[0] - origen.offsetLeft;
+      const dyReingreso = reingreso[1] - origen.offsetTop;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      const fotogramas = reduce
+        ? [
+            { transform: "translate(0px, 0px)", opacity: 1, offset: 0 },
+            { transform: "translate(0px, 0px)", opacity: 0, offset: .49, easing: "steps(1, end)" },
+            { transform: `translate(${dxFinal}px, ${dyFinal}px)`, opacity: 0, offset: .5, easing: CURVA_RASTREO },
+            { transform: `translate(${dxFinal}px, ${dyFinal}px)`, opacity: 1, offset: 1 },
+          ]
+        : [
+            { transform: `translate(${inicio[0]}px, ${inicio[1]}px)`, opacity: 1, offset: 0, easing: CURVA_RASTREO },
+            { transform: `translate(${salida[0]}px, ${salida[1]}px)`, opacity: 1, offset: .4, easing: "linear" },
+            { transform: `translate(${salida[0]}px, ${salida[1]}px)`, opacity: 0, offset: .5 },
+            { transform: `translate(${dxReingreso}px, ${dyReingreso}px)`, opacity: 0, offset: .5, easing: CURVA_RASTREO },
+            { transform: `translate(${dxFinal}px, ${dyFinal}px)`, opacity: 1, offset: 1 },
+          ];
+      const animacion = sprite.animate(fotogramas, {
+        duration: duracion * 2000, fill: "forwards", easing: "linear",
+      });
+      this.animacionSprite = animacion;
+      animacion.finished.then(() => {
+        if (this.sprite !== sprite) return;
+        sprite.remove();
+        this.sprite = null;
+        this.animacionSprite = null;
+      }).catch(() => {});
     },
   };
 
@@ -700,7 +790,7 @@
       // El celular solo ve lo suyo: nunca el marcador de los otros mandos.
       const bruto = (marcador[juegoFiesta] || {})[yoId];
       const dato = bruto && typeof bruto === "object" ? bruto : {};
-      const puntos = dato.puntos ?? bruto ?? 0;
+      const puntos = misPuntos?.puntos ?? dato.puntos ?? bruto ?? 0;
       const ronda = dato.ronda ?? (juegoFiesta === "pajaros" ? rondaClasica : 0);
       $("marcador-0").innerHTML =
         `<div class="nombre">${nombreHtml(jugadores[yoId] || "TÚ", " · TÚ")}</div>` +
@@ -796,16 +886,24 @@
   }
 
   /* ---------- Mensajes del servidor ---------- */
-  function mostrarEspera(kicker, titulo, texto, barraDuracion = 0) {
+  function mostrarEspera(kicker, titulo, texto) {
     detenerTimers();
     $("contenido").innerHTML = `<div class="panel panel-escena pantalla-espera-mando">
       <div class="glifo">◉</div>
       <p class="kicker">${kicker}</p>
       <h2 class="panel-titulo">${titulo}</h2>
       <p class="pista">${texto}</p>
-      ${barraDuracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : ""}
     </div>`;
-    if (barraDuracion) actualizarBarraCajas(barraDuracion);
+  }
+
+  // Resultado privado: cada mando ve solo si acertó, nunca la respuesta ajena.
+  function mostrarResultadoPrivado(titulo, acepta, detalle = "") {
+    detenerTimers();
+    $("contenido").innerHTML = `<div class="panel panel-escena pantalla-espera-mando">
+      <p class="kicker">${escapeHtml(titulo)}</p>
+      <h2 class="panel-titulo ${acepta ? "privado-bien" : "privado-mal"}">${acepta ? "✔️ CORRECTO" : "❌ ERROR"}</h2>
+      ${detalle ? `<p class="pista">${escapeHtml(detalle)}</p>` : ""}
+    </div>`;
   }
 
   // En FIESTA el informe de cada ronda es cosa de la pantalla. El mando solo
@@ -1017,6 +1115,14 @@
         if (!resultadoSoloEnPantalla()) mostrarResultadoRonda(msg);
         break;
 
+      case "round_feedback":
+        if (msg.pid !== yoId) return;
+        mostrarResultadoPrivado(
+          `${NOMBRES_FIESTA[msg.juego] || "RONDA"} · TU RESULTADO`,
+          msg.acepta
+        );
+        break;
+
       case "minigame_result":
         aviso(`${msg.nombre} SE LLEVA ${msg.juego === "pajaros" ? "HÁMSTERS" : "PALABRAS"}`);
         break;
@@ -1038,8 +1144,7 @@
           mostrarEspera(
             "MIRA LA PANTALLA",
             "¡A CONTAR CAJAS!",
-            "La pila aparece en la pantalla del anfitrión.",
-            msg.duracion
+            "La pila aparece en la pantalla del anfitrión."
           );
         } else {
           mostrarPilaCajas(msg);
@@ -1056,6 +1161,15 @@
 
       case "cajas_result":
         if (!resultadoSoloEnPantalla()) mostrarResultadoCajas(msg);
+        break;
+
+      case "cajas_feedback":
+        if (msg.pid !== yoId) return;
+        mostrarResultadoPrivado(
+          "CAJAS · TU RESULTADO",
+          msg.acepta,
+          msg.elegida == null ? "NO CONFIRMASTE A TIEMPO" : `ELEGISTE ${msg.elegida}`
+        );
         break;
 
       case "cajas_over":
@@ -1109,7 +1223,7 @@
 
       case "rastreo_countdown":
         mostrarCuentaPrevia(msg, {
-          kicker: "FASE 01 · PREPARA LA VISTA",
+          kicker: `FASE 01 · PREPARA LA VISTA · ${String(msg.dificultad || "facil").toUpperCase()}`,
           pie: "RASTREA DOS HÁMSTERS",
           glifo: "◎",
         });
@@ -1166,6 +1280,16 @@
         mostrarPodio(msg);
         break;
 
+      case "mis_puntos":
+        if (!esMandoFiesta()) break;
+        misPuntos = msg;
+        actualizarMarcador();
+        break;
+
+      case "podio_mando":
+        if (esMandoFiesta()) mostrarPodioMando(msg);
+        break;
+
       case "back_to_selector":
         volverAlSelector(msg);
         break;
@@ -1175,6 +1299,7 @@
         modoCajas = false;
         modoOperaciones = false;
         juegoFiesta = null;
+        misPuntos = null;
         if (msg.jugadores) jugadores = msg.jugadores;
         if (msg.host) hostId = msg.host;
         if (esMandoFiesta()) {
@@ -1272,7 +1397,7 @@
       ${marcas}
       ${mano((hora % 12) * 30 + minuto * 0.5, 26, 5, "#1c1a17")}
       ${mano(minuto * 6, 36, 2.5, "#1c1a17")}
-      <circle cx="50" cy="50" r="3.5" fill="#d33827"/>
+      <circle cx="50" cy="50" r="3.5" fill="#bd6b80"/>
     </svg>`;
   }
 
@@ -1371,8 +1496,7 @@
       mostrarEspera(
         "MIRA LA PANTALLA",
         "¡ATENTO!",
-        "El estímulo aparece solo en la pantalla del anfitrión.",
-        msg.duracion || 0
+        "El estímulo aparece solo en la pantalla del anfitrión."
       );
       return;
     }
@@ -1794,7 +1918,7 @@
     $("contenido").innerHTML = `<div class="panel resultado">
       <div class="resultado-cabecera">
         <p class="kicker">${escapeHtml(NOMBRES_MINI[juego] || juego.toUpperCase())} · ${etiquetaRonda(msg)}</p>
-        <h2>${msg.acierto ? "✔️ RONDA CORRECTA" : "❌ RONDA ERRÓNEA"}</h2>
+        <h2>INFORME DE LA RONDA</h2>
       </div>
       ${respuestaCorrectaHtml(juego, msg.reto || {})}
       <div class="puntajes">${filas}</div>
@@ -1904,7 +2028,8 @@
 
   function mostrarRastreo(msg, fase) {
     detenerTimers();
-    const kicker = FASES_RASTREO[fase] || FASES_RASTREO.movimiento;
+    const kicker = (FASES_RASTREO[fase] || FASES_RASTREO.movimiento) +
+      (msg.dificultad ? ` · ${String(msg.dificultad).toUpperCase()}` : "");
     if (esMandoFiesta()) {
       if (fase === "identificacion") {
         $("etiqueta-ronda").textContent = `RONDA ${String(msg.ronda || 0).padStart(2, "0")}`;
@@ -1922,8 +2047,7 @@
       mostrarEspera(
         "MIRA LA PANTALLA",
         fase === "observacion" ? "¡OBSERVA!" : "¡SIGUE LAS CASILLAS!",
-        "El tablero aparece solo en la pantalla del anfitrión.",
-        msg.duracion || 0
+        "El tablero aparece solo en la pantalla del anfitrión."
       );
       return;
     }
@@ -2739,7 +2863,7 @@
       <div class="amplio-arriba">
       <div class="resultado-cabecera" style="width:100%">
         <p class="kicker">INFORME · RONDA ${String(msg.ronda).padStart(2, "0")} / ${msg.necesario} · ${escapeHtml(msg.dificultad || "")}</p>
-        <h2>${acierto ? "¡CORRECTO!" : "ESA VEZ NO"}</h2>
+        <h2>INFORME DE LA RONDA</h2>
       </div>
       ${propio.racha > 0 ? `<div class="cajas-racha">RACHA DE ${propio.racha}</div>` : ""}
       </div>
@@ -3014,6 +3138,28 @@
     mostrar("pantalla-podio");
   }
 
+  // El mando también ve el podio final, pero sin desgloses ajenos: solo
+  // clasificación, su propia fila resaltada y el botón de salida.
+  function mostrarPodioMando(msg) {
+    detenerTimers();
+    podioActual = msg.filas || [];
+    $("podio-kicker").textContent = "PODIO FINAL · FIESTA";
+    $("podio-titulo").textContent = "CAMPEONES DE LA FIESTA";
+    $("lista-podio").innerHTML = podioActual
+      .map(
+        (fila, i) =>
+          `<div class="fila-podio ${i === 0 ? "top1" : ""}" data-id="${fila.id}">` +
+          `<span class="puesto">${i + 1}</span>` +
+          `<span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === yoId ? " · TÚ" : "")}</span>` +
+          `<span class="puntos">${fila.puntos ?? 0}</span></div>`
+      )
+      .join("");
+    $("podio-pie").innerHTML =
+      'FIN DE LA FIESTA · <button class="boton rojo chico" id="btn-fin-podio-mando">VOLVER AL INICIO</button>';
+    $("btn-fin-podio-mando").addEventListener("click", () => volverAlInicio());
+    mostrar("pantalla-podio");
+  }
+
   function volverAlSelector(msg) {
     detenerTimers();
     jugadores = msg.jugadores || jugadores;
@@ -3024,6 +3170,7 @@
     modoOperaciones = false;
     juegoFiesta = null;
     marcador = { pajaros: {}, escritura: {}, necesario: 3 };
+    misPuntos = null;
     pintarPodiosLobby();
     actualizarLobby();
     if (esPantalla) {

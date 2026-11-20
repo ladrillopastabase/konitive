@@ -332,7 +332,7 @@ async def difundir_a_pantalla(sala: Sala, mensaje: dict) -> None:
 
 
 async def difundir_a_mandos(sala: Sala, mensaje: dict) -> None:
-    """Avisos sin puntajes: el celular nunca recibe el marcador de los demás."""
+    """Avisos compartidos: el celular nunca recibe el marcador de los demás."""
     for jugador in list(sala.jugadores.values()):
         if jugador.rol == "mando":
             await jugador.enviar(mensaje)
@@ -416,6 +416,23 @@ def clasificacion(sala: Sala) -> list[dict]:
     return sorted(filas, key=lambda fila: (-fila["puntos"], fila["nombre"].casefold()))
 
 
+async def enviar_puntos_propios(sala: Sala, filas: list[dict], final: bool) -> None:
+    """Cada mando recibe solo SU acumulado y su puesto, nunca el de los demás."""
+    puestos = {fila["id"]: i + 1 for i, fila in enumerate(filas)}
+    for jugador in participantes(sala):
+        await jugador.enviar(
+            {
+                "type": "mis_puntos",
+                "puntos": sala.fiesta_puntos.get(jugador.id, 0),
+                "puesto": puestos.get(jugador.id, 0),
+                "total": len(filas),
+                "juego": sala.juego_fiesta,
+                "nombre_juego": NOMBRES_JUEGOS.get(sala.juego_fiesta or "", ""),
+                "final": final,
+            }
+        )
+
+
 async def emitir_podium(
     sala: Sala, final: bool = False, siguiente: str | None = None
 ) -> None:
@@ -424,6 +441,7 @@ async def emitir_podium(
         sala.fiesta_puntos[pid] = sala.fiesta_puntos.get(pid, 0) + puntos
     filas = clasificacion(sala)
     antes = sala.podium_antes
+    await enviar_puntos_propios(sala, filas, final)
     await difundir_a_pantalla(
         sala,
         {
@@ -438,8 +456,18 @@ async def emitir_podium(
     )
     if final:
         sala.fase = "fin"
-        # El celular solo necesita saber que terminó para poder volver al inicio.
         await difundir_a_mandos(sala, {"type": "fin_fiesta"})
+        # Va después del aviso de cierre: el podio es lo último que se ve en el celular.
+        await difundir_a_mandos(
+            sala,
+            {
+                "type": "podio_mando",
+                "filas": filas,
+                "final": True,
+                "juego": sala.juego_fiesta,
+                "nombre_juego": NOMBRES_JUEGOS.get(sala.juego_fiesta or "", ""),
+            },
+        )
         return
     await pausa(sala, TIEMPO_PODIO)
     sala.ultimos_puntos = {}

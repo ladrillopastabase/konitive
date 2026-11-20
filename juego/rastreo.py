@@ -47,11 +47,20 @@ class HamsterManager:
                 halladas[valor] = indice
         return halladas
 
-    def regenerar(self, tablero: BoardManager) -> int:
+    def regenerar(
+        self, tablero: BoardManager, vedadas: set[int] | None = None
+    ) -> int:
+        """Reintroduce al hámster expulsado sin pisar al otro.
+
+        ``vedadas`` incluye la casilla que el otro hámster ocupaba antes del
+        desplazamiento: aunque ya la haya dejado, el sprite que vuelve a entrar
+        no debe aparecer justo donde el otro acababa de estar.
+        """
         posiciones = self.posiciones(tablero)
         vuelve = next(h for h in HAMSTERS if h not in posiciones)
         otro = next(h for h in HAMSTERS if h != vuelve)
-        destino = self.rng.choice([i for i in range(CELDAS) if i != posiciones[otro]])
+        excluidas = {posiciones[otro]} | (vedadas or set())
+        destino = self.rng.choice([i for i in range(CELDAS) if i not in excluidas])
         tablero.set(destino, vuelve)
         return destino
 
@@ -75,13 +84,20 @@ class MovementSystem:
 
         entrada, salida = indices[0], indices[-1]
         expulsado = self.tablero.get(salida)
+        vedadas: set[int] = set()
+        if expulsado in HAMSTERS:
+            vedadas = {
+                indice
+                for h, indice in self.hamsters.posiciones(self.tablero).items()
+                if h != expulsado
+            }
         for i in range(len(indices) - 1, 0, -1):
             self.tablero.set(indices[i], self.tablero.get(indices[i - 1]))
         self.tablero.set(entrada, "G")
 
         reaparecio = None
         if expulsado in HAMSTERS:
-            reaparecio = self.hamsters.regenerar(self.tablero)
+            reaparecio = self.hamsters.regenerar(self.tablero, vedadas)
 
         return {
             "lado": lado,
@@ -103,6 +119,7 @@ class CatSpawner:
 
 
 RONDAS_RASTREO = 6
+NIVEL_ORDEN = ("facil", "normal", "dificil", "experto")
 
 # observación y movimiento en segundos; animación es la duración de cada entrada
 NIVELES = {
@@ -123,6 +140,12 @@ NIVELES = {
         "intervalo": 1.0, "animacion": 0.18,
     },
 }
+
+
+def nivel_para_ronda(base: str, ronda: int) -> str:
+    """Nivel de una ronda: escalera desde ``base``, con tope en experto."""
+    indice = NIVEL_ORDEN.index(base) if base in NIVEL_ORDEN else 0
+    return NIVEL_ORDEN[min(len(NIVEL_ORDEN) - 1, indice + max(0, ronda - 1))]
 
 
 class DifficultyManager:
@@ -193,11 +216,15 @@ class GameManager:
             self.final = dict(self.hamsters.posiciones(self.tablero))
             return None
         lado, linea = self.spawner.siguiente()
-        self.movimiento.aplicar(lado, linea)
+        resultado = self.movimiento.aplicar(lado, linea)
+        # La pantalla necesita por dónde se va el hámster expulsado y dónde
+        # reaparece; nunca el id interno, que no cruza la capa de juego.
         entrada = {
             "lado": lado,
             "linea": linea,
             "duracion": self.parametros["animacion"],
+            "salida": resultado["salida"],
+            "reaparecio": resultado["reaparecio"],
         }
         self.movimientos.append(entrada)
         self._entradas += 1

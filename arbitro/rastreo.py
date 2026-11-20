@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager
+from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager, nivel_para_ronda
 from arbitro import nucleo
 from arbitro.minijuegos import brain_age_y_puntos
 from arbitro.nucleo import (
@@ -107,6 +107,7 @@ async def bucle_rastreo(sala: Sala) -> None:
     puntos = {pid: 0 for pid in ids}
     sala.ultimos_puntos = {}
     rondas = rondas_para(sala, RONDAS_RASTREO)
+    dificultad_base = ajuste_actual(sala).get("dificultad", "facil")
     sala.datos = {
         "juego": "rastreo",
         "ronda": 0,
@@ -130,7 +131,7 @@ async def bucle_rastreo(sala: Sala) -> None:
         for ronda in range(1, rondas + 1):
             if sala.cancelada:
                 return
-            dificultad = ajuste_actual(sala).get("dificultad", "facil")
+            dificultad = nivel_para_ronda(dificultad_base, ronda)
             plan = GameManager.generar(dificultad)
             parametros = plan["parametros"]
             sala.datos.update(
@@ -188,7 +189,8 @@ async def bucle_rastreo(sala: Sala) -> None:
             for indice, movimiento in enumerate(plan["movimientos"], start=1):
                 if sala.cancelada:
                     return
-                await sala.difundir(
+                await difundir_roles(
+                    sala,
                     {
                         "type": "rastreo_move",
                         "ronda": ronda,
@@ -197,7 +199,18 @@ async def bucle_rastreo(sala: Sala) -> None:
                         "lado": movimiento["lado"],
                         "linea": movimiento["linea"],
                         "duracion": movimiento["duracion"],
-                    }
+                        "salida": movimiento["salida"],
+                        "reaparecio": movimiento["reaparecio"],
+                    },
+                    {
+                        "type": "rastreo_move",
+                        "ronda": ronda,
+                        "indice": indice,
+                        "total": total,
+                        "lado": movimiento["lado"],
+                        "linea": movimiento["linea"],
+                        "duracion": movimiento["duracion"],
+                    },
                 )
                 await nucleo.pausa(sala, parametros["intervalo"])
                 if sala.cancelada:

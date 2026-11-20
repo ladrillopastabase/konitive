@@ -191,7 +191,7 @@ def filas_avance_mini(sala: Sala, juego: str) -> list[dict]:
 async def _feedback_privado(
     sala: Sala, jugador: Jugador, juego: str, acepta: bool, **extra
 ) -> None:
-    """Feedback verde/rojo solo al jugador que respondió."""
+    """Feedback verde/rosa solo al jugador que respondió."""
     await jugador.enviar(
         {
             "type": f"{juego}_feedback",

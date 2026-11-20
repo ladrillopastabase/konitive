@@ -189,6 +189,19 @@ async def bucle_cajas(sala: Sala) -> None:
                     "racha": rachas[pid],
                 }
 
+            # Cada mando recibe solo si acertó: nunca el total ni la pila.
+            for jugador in jugadores_:
+                dato = por_jugador[jugador.id]
+                await jugador.enviar(
+                    {
+                        "type": "cajas_feedback",
+                        "pid": jugador.id,
+                        "acepta": dato["acierto"],
+                        "elegida": dato["elegida"],
+                        "ronda": ronda,
+                    }
+                )
+
             # Campos planos del primer jugador: compatibles con el modo individual.
             principal = por_jugador[ids[0]] if ids else {}
             # En FIESTA el informe se ve solo en la pantalla; el mando no recibe

@@ -51,7 +51,7 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 - Nombre: **Konitive · Laboratorio de Atención**.
 - Voz íntegramente en español; pesos chilenos y formato `$3.750` en DAR VUELTO; corpus de palabras sin tildes ni ñ.
 - Compromiso explícito del usuario: debe ser «bonito, con diseño y componentes reutilizables y escalables». La calidad visual y la reutilización forman parte del producto, no son un extra.
-- Identidad ya instalada en el código y el README: cuaderno de laboratorio de papel y tinta con un solo acento rojo. Tratar como identidad existente a preservar; no reemplazarla sin que se pida un rediseño.
+- Identidad ya instalada en el código y el README: cuaderno de laboratorio de papel y tinta con un solo acento rosa (`#F7D1D1`). Tratar como identidad existente a preservar; no reemplazarla sin que se pida un rediseño.
 
 ## Evidence on Hand
 

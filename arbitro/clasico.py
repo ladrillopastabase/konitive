@@ -455,6 +455,24 @@ async def bucle_partida(sala: Sala) -> None:
                 }
             )
 
+            # Cada mando recibe solo su acierto; el informe con la respuesta
+            # correcta se queda en la pantalla.
+            desglose_ronda = sala.datos.get("desglose", {})
+            for jugador in participantes(sala):
+                if juego == "pajaros":
+                    acepta = puntos.get(jugador.id, 0) > 0
+                else:
+                    acepta = desglose_ronda.get(jugador.id, {}).get("correctas", 0) > 0
+                await jugador.enviar(
+                    {
+                        "type": "round_feedback",
+                        "pid": jugador.id,
+                        "juego": juego,
+                        "acepta": acepta,
+                        "ronda": sala.datos.get("ronda", 0),
+                    }
+                )
+
             # En FIESTA el informe se ve solo en la pantalla: al mando no le
             # llega la palabra ni el recuento correcto de la ronda.
             await difundir_roles(
