@@ -170,8 +170,8 @@ def probar_documentacion_incluye_ppt():
     product = (BASE / "PRODUCT.md").read_text(encoding="utf-8")
     assert "PIEDRA · PAPEL · TIJERA" in readme
     assert "test_ppt.py" in readme
-    assert "12 pruebas" in readme
-    assert "12 pruebas" in product
+    assert "13 pruebas" in readme
+    assert "13 pruebas" in product
 
 
 async def probar_ppt_individual_responde_bien_y_resume() -> None:
@@ -342,7 +342,7 @@ async def main() -> None:
     probar_ppt_revela_respuesta_solo_en_el_resultado()
     print("Resultado: la respuesta se revela solo al terminar la ronda")
     probar_documentacion_incluye_ppt()
-    print("Documentación: piedra papel tijera y 12 pruebas documentadas")
+    print("Documentación: piedra papel tijera y 13 pruebas documentadas")
     await probar_ppt_individual_responde_bien_y_resume()
     await probar_ppt_ignora_respuestas_invalidas_y_empate()
     await probar_ppt_fiesta_no_filtra_la_respuesta()

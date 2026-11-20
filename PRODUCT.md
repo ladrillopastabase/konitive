@@ -17,14 +17,14 @@ No hay un único público asignado; ambos usos son parte del producto.
 
 ## Product Purpose
 
-Juego de entrenamiento cerebral inspirado en los minijuegos del Dr. Kawashima. Reúne 12 pruebas de atención, memoria, escritura y cálculo. El éxito es completar las pruebas elegidas y ver el propio progreso: resumen final con puntos por prueba en INDIVIDUAL, podio acumulado entre juegos y podio final en FIESTA.
+Juego de entrenamiento cerebral inspirado en los minijuegos del Dr. Kawashima. Reúne 13 pruebas de atención, memoria, escritura y cálculo. El éxito es completar las pruebas elegidas y ver el propio progreso: resumen final con puntos por prueba en INDIVIDUAL, podio acumulado entre juegos y podio final en FIESTA.
 
 ## Positioning
 
 El usuario confirmó que la identidad está en la combinación de tres mecanismos, no en uno solo:
 
 - **FIESTA de pantalla y mandos**: el servidor nunca envía secretos ni respuestas correctas a los celulares; hay que mirar la pantalla para jugar. La pantalla no puntúa.
-- **Las 12 pruebas en un solo lugar**: clásicos y minijuegos comparten selección, puntuación y resumen.
+- **Las 13 pruebas en un solo lugar**: clásicos y minijuegos comparten selección, puntuación y resumen.
 - **Escritura a mano reconocida localmente**: modelos incluidos en el repositorio, sin descargas ni servicios externos.
 
 ## Operating Context
@@ -36,15 +36,15 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 
 ## Capabilities and Constraints
 
-- Modos: duelo **ABRIR SALA / UNIRSE** (PÁJAROS y PALABRAS, mejor de 3 victorias por juego), **INDIVIDUAL** (de 1 a 12 pruebas en orden fijo con informe final) y **FIESTA** (los 12 juegos, podio entre juegos y podio final).
+- Modos: duelo **ABRIR SALA / UNIRSE** (PÁJAROS y PALABRAS, mejor de 3 victorias por juego), **INDIVIDUAL** (de 1 a 13 pruebas en orden fijo con informe final) y **FIESTA** (los 13 juegos, podio entre juegos y podio final).
 - Juegos clásicos: **PÁJAROS**, **PALABRAS**, **CAJAS** (tanda de 10 rondas) y **OPERACIONES** (tanda de 10 rondas).
-- Ocho minijuegos: **STROOP**, **TRIÁNGULOS**, **RELOJES**, **MENOR A MAYOR**, **MEMORIA**, **DAR VUELTO**, **SÍLABAS** y **PIEDRA · PAPEL · TIJERA**.
+- Nueve minijuegos: **STROOP**, **TRIÁNGULOS**, **RELOJES**, **MENOR A MAYOR**, **MEMORIA**, **DAR VUELTO**, **SÍLABAS**, **RASTREO DE HÁMSTERS** y **PIEDRA · PAPEL · TIJERA**.
 - Puntuación de los minijuegos: Brain Age = `tiempo total + 5 s por error` (menor es mejor); en el podio de FIESTA se invierte a puntos altos para mantener el orden de mayor a menor.
 - En FIESTA la pantalla no entra al podio. No se envían a los mandos las aves, la palabra, la pila de cajas, el enunciado de la operación, la grilla de MEMORIA ni ninguna respuesta correcta. El informe de cada ronda se muestra solo en la pantalla; el mando solo espera la siguiente.
 - Si un mando se desconecta, la partida sigue; si se desconecta la pantalla, la partida se cancela.
 - Reconocedores EMNIST (26 letras) y MNIST (10 dígitos) incluidos en `juego/modelos/`. No requieren descarga.
 - Hasta 200 salas abiertas a la vez.
-- Terminología fija del producto: «PÁJAROS» / «HÁMSTERS», «PALABRAS», «CAJAS», «OPERACIONES», «DAR VUELTO», «pantalla», «mando», «podio», «Brain Age».
+- Terminología fija del producto: «PÁJAROS» / «HÁMSTERS», «RASTREO DE HÁMSTERS», «PALABRAS», «CAJAS», «OPERACIONES», «DAR VUELTO», «pantalla», «mando», «podio», «Brain Age».
 
 ## Brand Commitments
 
@@ -58,13 +58,13 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 - `README.md`: fuente de verdad de modos, juegos, reglas, instalación, arquitectura y pruebas.
 - `juego/frases_silabas.json`: 63 frases con separación silábica validada.
 - `juego/modelos/emnist_model.onnx` (26 letras) y `juego/modelos/mnist_model.onnx` (10 dígitos).
-- Once suites ejecutables: `test_reconocedor.py`, `test_partida.py`, `test_cajas.py`, `test_operaciones.py`, `test_salas.py`, `test_individual.py`, `test_silabas.py`, `test_minijuegos.py`, `test_ppt.py`, `test_revision.py`, `test_fiesta_progreso.py`.
+- Doce suites ejecutables: `test_reconocedor.py`, `test_partida.py`, `test_cajas.py`, `test_operaciones.py`, `test_salas.py`, `test_individual.py`, `test_silabas.py`, `test_minijuegos.py`, `test_ppt.py`, `test_revision.py`, `test_fiesta_progreso.py`, `test_rastreo.py`.
 - No hay testimonios, clientes, métricas de uso ni evidencia de mercado. No inventarlos.
 
 ## Product Principles
 
 - Lo que hay que memorizar vive solo en la pantalla: los mandos reciben controles y pistas, nunca secretos ni respuestas.
-- Un mismo conjunto de 12 pruebas sirve para la rutina individual y para la fiesta; la mecánica de cada prueba no cambia entre modos.
+- Un mismo conjunto de 13 pruebas sirve para la rutina individual y para la fiesta; la mecánica de cada prueba no cambia entre modos.
 - La generación de estímulos y el reconocimiento ocurren en el servidor o localmente, sin servicios externos ni descargas.
 - Debe funcionar bien en celulares pequeños y equipos con pocos recursos, y mantenerse en español.
 - El cuidado visual y los componentes reutilizables y escalables son requisitos del producto.

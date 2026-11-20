@@ -104,6 +104,15 @@ def probar_rastreo_cliente_reutiliza_sprite_y_fases():
     assert ".rastreo-casilla" in css
     assert "calc(-100% - var(--v-1))" in css and "calc(100% + var(--v-1))" in css
 
+def probar_documentacion_incluye_rastreo():
+    readme = (BASE / "README.md").read_text(encoding="utf-8")
+    producto = (BASE / "PRODUCT.md").read_text(encoding="utf-8")
+    assert "RASTREO DE HÁMSTERS" in readme
+    assert "13 pruebas" in readme or "las 13" in readme
+    assert "nueve minijuegos" in readme
+    assert "python test_rastreo.py" in readme
+    assert "RASTREO DE HÁMSTERS" in producto
+
 import asyncio, json, threading, time
 from pathlib import Path
 import uvicorn, websockets
@@ -229,6 +238,7 @@ async def main():
     probar_rastreo_registrado_como_13a_prueba()
     probar_rastreo_contrato_cliente()
     probar_rastreo_cliente_reutiliza_sprite_y_fases()
+    probar_documentacion_incluye_rastreo()
     await probar_rastreo_individual_y_seleccion_invalida()
     await probar_rastreo_movimientos_secuenciales()
     await probar_rastreo_fiesta_mandos_sin_posiciones()
