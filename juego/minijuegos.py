@@ -60,16 +60,16 @@ COLOR_HEX = {
 
 DENOMINACIONES_CLP = (10000, 5000, 2000, 1000, 500, 100, 50, 10)
 PRODUCTOS = (
-    ("🍞", "Pan"),
-    ("🥤", "Bebida"),
-    ("🌭", "Completo"),
-    ("🥟", "Empanada"),
-    ("📓", "Cuaderno"),
-    ("🍎", "Manzana"),
-    ("☕", "Café"),
-    ("🧃", "Jugo"),
-    ("🍫", "Chocolate"),
-    ("🧀", "Queso"),
+    "Pan",
+    "Bebida",
+    "Completo",
+    "Empanada",
+    "Cuaderno",
+    "Manzana",
+    "Café",
+    "Jugo",
+    "Chocolate",
+    "Queso",
 )
 
 
@@ -164,6 +164,10 @@ def generar_triangulo(ronda: int) -> dict:
 # --------------------------------------------------------------------------
 # 3. Lectura de relojes
 # --------------------------------------------------------------------------
+def periodo(minuto_del_dia: int) -> str:
+    return "A. M." if minuto_del_dia < 720 else "P. M."
+
+
 def generar_reloj(ronda: int) -> dict:
     """Dos relojes analógicos y la diferencia, menor a 12 horas."""
     paso = 15
@@ -184,9 +188,15 @@ def generar_reloj(ronda: int) -> dict:
                 continue
         hora2 = ((hora1 - 1 + horas + (min1 + mins) // 60) % 12) + 1
         min2 = (min1 + mins) % 60
+        # Un reloj analógico no distingue mañana de tarde: el periodo de cada
+        # uno deja una sola diferencia posible (p. ej. 10:00 a. m. -> 2:00 p. m.).
+        inicio = (hora1 % 12) * 60 + min1 + random.choice((0, 720))
+        fin = (inicio + horas * 60 + mins) % 1440
         return {
             "reloj1": [hora1, min1],
             "reloj2": [hora2, min2],
+            "periodo1": periodo(inicio),
+            "periodo2": periodo(fin),
             "horas": horas,
             "minutos": mins,
             "esperado": f"{horas:02d}{mins:02d}",
@@ -198,6 +208,8 @@ def generar_reloj(ronda: int) -> dict:
     return {
         "reloj1": [2, 15],
         "reloj2": [4, 45],
+        "periodo1": "P. M.",
+        "periodo2": "P. M.",
         "horas": 2,
         "minutos": 30,
         "esperado": "0230",
@@ -215,7 +227,7 @@ def generar_menor(ronda: int) -> dict:
     """Números no consecutivos en posiciones normalizadas sin solapamiento."""
     cantidades = (5, 7, 9, 10, 12)
     cantidad = cantidades[min(ronda - 1, len(cantidades) - 1)]
-    distancia_minima = 0.17
+    distancia_minima = 0.20
     for _ in range(200):
         valores = random.sample(range(1, 100), cantidad)
         ordenados = sorted(valores)
@@ -226,8 +238,10 @@ def generar_menor(ronda: int) -> dict:
             for _intento in range(120):
                 x = round(random.uniform(0.09, 0.91), 3)
                 y = round(random.uniform(0.10, 0.90), 3)
+                # Separación por eje (no diagonal): así los cuadrados del cliente,
+                # que miden el 18 % del campo, nunca se tocan.
                 if all(
-                    (x - px) ** 2 + (y - py) ** 2 >= distancia_minima**2
+                    max(abs(x - px), abs(y - py)) >= distancia_minima
                     for px, py, _ in puntos
                 ):
                     puntos.append((x, y, valor))
@@ -261,13 +275,15 @@ def generar_menor(ronda: int) -> dict:
 # --------------------------------------------------------------------------
 # 5. Memoria de números
 # --------------------------------------------------------------------------
+# (lado de la grilla, cantidad de números, segundos a la vista). Los segundos
+# son la perilla de dificultad: ~0,5 s por número.
 TABLA_MEMORIA = (
-    (3, 3, 4),
-    (3, 4, 4),
-    (4, 5, 4),
-    (4, 6, 5),
-    (4, 7, 5),
-    (5, 8, 6),
+    (3, 3, 1.5),
+    (3, 4, 2.0),
+    (4, 5, 2.5),
+    (4, 6, 3.0),
+    (4, 7, 3.5),
+    (5, 8, 4.0),
 )
 
 
@@ -318,9 +334,9 @@ def generar_vuelto(ronda: int) -> dict:
     indice = 1 if len(superiores) > 1 and random.random() < 0.2 else 0
     pago = superiores[min(indice, len(superiores) - 1)]
     vuelto = pago - precio
-    icono, nombre = random.choice(PRODUCTOS)
+    nombre = random.choice(PRODUCTOS)
     return {
-        "producto": {"icono": icono, "nombre": nombre},
+        "producto": {"nombre": nombre},
         "precio": precio,
         "precio_texto": formatear_clp(precio),
         "pago": pago,

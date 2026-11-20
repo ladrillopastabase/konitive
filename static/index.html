@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#1c1a17">
   <link rel="icon" href="data:,">
   <title>Konitive · Laboratorio de Atención</title>
@@ -15,6 +15,7 @@
     <span class="barra-nombre">KONITIVE</span>
     <span class="barra-sep">//</span>
     <span class="barra-sub">LABORATORIO DE ATENCIÓN</span>
+    <button id="btn-sonido" class="barra-salir barra-sonido" type="button" aria-pressed="true" aria-label="Sonido activado">♪ ON</button>
     <button id="btn-salir" class="barra-salir" hidden>SALIR ✕</button>
   </header>
 
@@ -49,14 +50,14 @@
 
           <label class="campo">
             <span class="etiqueta">NOMBRE DEL PACIENTE</span>
-            <input id="nombre" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off">
+            <input id="nombre" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off" autocapitalize="words" autocorrect="off" enterkeyhint="go">
           </label>
 
           <button id="btn-crear" class="boton rojo">ABRIR SALA →</button>
 
           <div class="separador"><span>YA TENGO UN CÓDIGO</span></div>
           <div class="fila-unirse">
-            <input id="codigo" type="text" maxlength="5" placeholder="CÓDIGO" autocomplete="off" spellcheck="false">
+            <input id="codigo" type="text" maxlength="5" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
             <button id="btn-unirse" class="boton oscuro">UNIRSE</button>
           </div>
 
@@ -67,7 +68,6 @@
           <p id="record-operaciones" class="nota"></p>
 
           <p id="error-inicio" class="error" role="alert"></p>
-          <p class="nota">Abre esta misma dirección en los dos navegadores, o escanea el QR de la sala con tu celular.</p>
         </div>
 
       </div>
@@ -80,7 +80,7 @@
         <h2 class="panel-titulo">ELIGE TUS PRUEBAS</h2>
         <p class="pista">Marca una, varias o todas. Se jugarán una detrás de otra y al final verás un resumen con tus puntos.</p>
         <div class="selector-individual" id="selector-individual">
-          <button type="button" class="boton-juego" data-juego="pajaros" aria-pressed="false">PÁJAROS</button>
+          <button type="button" class="boton-juego" data-juego="pajaros" aria-pressed="false">HÁMSTERS</button>
           <button type="button" class="boton-juego" data-juego="escritura" aria-pressed="false">PALABRAS</button>
           <button type="button" class="boton-juego" data-juego="cajas" aria-pressed="false">CAJAS</button>
           <button type="button" class="boton-juego" data-juego="operaciones" aria-pressed="false">OPERACIONES</button>
@@ -112,7 +112,7 @@
         </div>
         <label class="campo">
           <span class="etiqueta">TU NOMBRE</span>
-          <input id="nombre-invitado" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off">
+          <input id="nombre-invitado" type="text" maxlength="14" placeholder="Escribe tu nombre" autocomplete="off" autocapitalize="words" autocorrect="off" enterkeyhint="go">
         </label>
         <button id="btn-unirme" class="boton rojo">UNIRME AL LOBBY</button>
         <p id="error-invitado" class="error" role="alert"></p>
@@ -121,39 +121,43 @@
 
     <!-- LOBBY -->
     <section id="pantalla-lobby" class="pantalla">
-      <div class="lobby">
-        <p class="kicker">SALA DE ESPERA</p>
-        <div class="ticket">
-          <div class="ticket-label">CÓDIGO DE ACCESO</div>
-          <div id="codigo-sala" class="ticket-codigo">-----</div>
-          <div class="ticket-pie">COMPÁRTELO CON TU RIVAL</div>
-        </div>
-        <div class="lobby-qr">
-          <img id="qr-sala" alt="Código QR para unirse a la sala" width="180" height="180">
-          <p class="pista">Escanea con el celular o abre el enlace. Si estás en casa, PC y celular deben estar en la misma WiFi; si no, usa el túnel.</p>
-          <button id="btn-copiar" class="boton contorno chico">COPIAR ENLACE</button>
-        </div>
-        <div class="jugadores" id="lista-jugadores"></div>
-        <button id="btn-empezar" class="boton rojo" disabled>INICIAR EXPERIMENTO</button>
-        <div id="selector-fiesta" class="selector-fiesta" hidden>
-          <p class="kicker">ELIGE EL JUEGO</p>
-          <div class="selector-juegos">
-            <button class="boton rojo" data-juego="pajaros">PÁJAROS</button>
-            <button class="boton rojo" data-juego="escritura">PALABRAS</button>
-            <button class="boton rojo" data-juego="cajas">CAJAS</button>
-            <button class="boton rojo" data-juego="operaciones">OPERACIONES</button>
-            <button class="boton rojo" data-juego="stroop">STROOP</button>
-            <button class="boton rojo" data-juego="triangulos">TRIÁNGULOS</button>
-            <button class="boton rojo" data-juego="relojes">RELOJES</button>
-            <button class="boton rojo" data-juego="menor">MENOR A MAYOR</button>
-            <button class="boton rojo" data-juego="memoria">MEMORIA</button>
-            <button class="boton rojo" data-juego="vuelto">DAR VUELTO</button>
-            <button class="boton rojo" data-juego="silabas">SÍLABAS</button>
+      <div class="lobby-grid" id="lobby-grid">
+        <div class="lobby-col lobby-acceso">
+          <p class="kicker">SALA DE ESPERA</p>
+          <div class="ticket">
+            <div class="ticket-label">CÓDIGO DE ACCESO</div>
+            <div id="codigo-sala" class="ticket-codigo">-----</div>
+            <div class="ticket-pie">COMPÁRTELO PARA QUE SE UNAN</div>
           </div>
-          <button id="btn-fin-fiesta" class="boton contorno chico">TERMINAR FIESTA</button>
+          <div class="lobby-qr">
+            <img id="qr-sala" alt="Código QR para unirse a la sala" width="180" height="180">
+            <div class="lobby-qr-texto">
+              <p class="pista">Escanea con el celular o comparte el enlace. En casa, PC y celular deben estar en la misma WiFi.</p>
+              <button id="btn-copiar" class="boton contorno chico">COPIAR ENLACE</button>
+            </div>
+          </div>
+          <div class="jugadores" id="lista-jugadores"></div>
+          <p id="estado-lobby" class="pista"></p>
+          <button id="btn-empezar" class="boton rojo" disabled>INICIAR EXPERIMENTO</button>
         </div>
-        <div id="podio-lobby" class="podio-lobby"></div>
-        <p id="estado-lobby" class="pista"></p>
+
+        <div class="lobby-col lobby-control" id="lobby-control" hidden>
+          <div id="selector-fiesta" class="selector-fiesta">
+            <div class="selector-cabecera">
+              <p class="kicker">ELIGE LOS JUEGOS · RONDAS · DIFICULTAD</p>
+              <div class="selector-acciones">
+                <button id="btn-fiesta-todos" class="boton contorno chico" type="button">TODOS</button>
+                <button id="btn-fiesta-ninguno" class="boton contorno chico" type="button">NINGUNO</button>
+              </div>
+            </div>
+            <div class="lista-fiesta" id="lista-fiesta"></div>
+            <div class="selector-pie">
+              <button id="btn-iniciar-fiesta" class="boton rojo" type="button" disabled>EMPEZAR</button>
+              <button id="btn-fin-fiesta" class="boton contorno chico" type="button">TERMINAR FIESTA</button>
+            </div>
+          </div>
+          <div id="podio-lobby" class="podio-lobby"></div>
+        </div>
       </div>
     </section>
 
@@ -170,10 +174,10 @@
     <!-- PODIO ANIMADO -->
     <section id="pantalla-podio" class="pantalla">
       <div class="podio">
-        <p class="kicker" id="podio-kicker">PODIO · DESPUÉS DE PÁJAROS</p>
+        <p class="kicker" id="podio-kicker">PODIO · DESPUÉS DE HÁMSTERS</p>
         <h2 class="podio-titulo" id="podio-titulo">ASÍ VA LA FIESTA</h2>
         <div id="lista-podio" class="lista-podio"></div>
-        <p class="pista" id="podio-pie">El anfitrión elige el siguiente juego…</p>
+        <p class="pista" id="podio-pie"></p>
       </div>
     </section>
 
@@ -183,16 +187,28 @@
         <div class="marcador" id="marcador-0"></div>
         <div class="ronda">
           <div id="etiqueta-ronda" class="ronda-num">RONDA 01</div>
-          <div id="titulo-juego" class="ronda-titulo">PÁJAROS</div>
+          <div id="titulo-juego" class="ronda-titulo">HÁMSTERS</div>
         </div>
         <div class="marcador derecha" id="marcador-1"></div>
       </div>
+      <div id="progreso-vivo" class="progreso-vivo" hidden></div>
       <div id="contenido" class="contenido"></div>
     </section>
 
   </main>
 
   <div id="aviso" class="aviso" role="status"></div>
+  <dialog id="dialogo-salir" class="dialogo" aria-labelledby="dialogo-salir-titulo">
+    <form method="dialog" class="dialogo-cuerpo">
+      <p class="kicker">AVISO · PARTIDA EN CURSO</p>
+      <h2 class="dialogo-titulo" id="dialogo-salir-titulo">¿ABANDONAR LA PRUEBA?</h2>
+      <p class="pista">Si sales ahora se pierde la partida y vuelves al inicio.</p>
+      <div class="dialogo-acciones">
+        <button class="boton contorno" value="no" autofocus>SEGUIR JUGANDO</button>
+        <button class="boton rojo" value="si">SALIR</button>
+      </div>
+    </form>
+  </dialog>
   <script src="/static/app.js"></script>
 </body>
 </html>

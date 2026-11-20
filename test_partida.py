@@ -25,6 +25,7 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
 from juego.palabras import LONGITUDES_POR_NIVEL, PALABRAS
 
 
@@ -41,8 +42,8 @@ async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.03)
 
 
-servidor.reconocedor = ReconocedorFalso()
-servidor.pausa = pausa_corta
+nucleo.reconocedor = ReconocedorFalso()
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8765, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -86,8 +87,8 @@ def validar_mensaje(msg: dict) -> None:
         for ave in msg["aves"]:
             for clave in ("salta", "periodo", "fase", "duracion", "dx", "dy", "altura"):
                 assert clave in ave, f"Falta el dato de salto {clave}"
-        if msg["nivel"] <= 2:
-            assert not any(ave["salta"] for ave in msg["aves"]), "Los primeros niveles van quietos"
+        # Desde el nivel 1 hay saltitos, pero nunca saltan todos a la vez.
+        assert not all(ave["salta"] for ave in msg["aves"]), "Nunca saltan todos"
     if tipo == "round_result" and msg["juego"] == "escritura":
         desglose = msg["desglose"]
         for pid, total in msg["puntos"].items():

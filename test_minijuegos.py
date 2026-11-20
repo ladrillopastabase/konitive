@@ -2,7 +2,8 @@
 
 Se juega cada prueba en INDIVIDUAL respondiendo siempre bien (así se comprueba
 el cálculo del Brain Age y la precisión) y se hace una FIESTA con dos mandos
-para verificar que la pantalla no puntúa y que los secretos no se filtran.
+para verificar que la pantalla no puntúa, conserva el estímulo grande (salvo
+Stroop, que se borra) y los secretos no se filtran a los celulares.
 
 Los reconocedores se parchean para «escribir» cifras y las pausas se acortan,
 como en el resto de las pruebas del proyecto.
@@ -18,6 +19,8 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
+from arbitro.minijuegos import brain_age_y_puntos, exposicion_stroop
 from juego.minijuegos import (
     JUEGOS_MINI,
     NOMBRES_MINI,
@@ -34,14 +37,14 @@ class ReconocedorFalso:
         return str(indice), 0.99, [0.0] * 10
 
 
-servidor.reconocedor_digitos = ReconocedorFalso()
+nucleo.reconocedor_digitos = ReconocedorFalso()
 
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
-servidor.pausa = pausa_corta
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8770, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -52,6 +55,14 @@ while not servidor_uvicorn.started:
 URL = "ws://127.0.0.1:8770/ws"
 TOTALES_SILABAS = {f["frase"]: len(f["silabas"]) for f in cargar_frases()}
 ESCRITURA = ("triangulos",)
+SOLO_PANTALLA = ("stroop", "triangulos", "relojes", "vuelto", "silabas")
+VISUAL_MINI = {
+    "stroop": ("palabra", "tinta"),
+    "triangulos": ("top", "ops", "op_final"),
+    "relojes": ("reloj1", "reloj2", "periodo1", "periodo2"),
+    "vuelto": ("producto", "precio_texto", "pago_texto"),
+    "silabas": ("frase",),
+}
 
 
 class Cliente:
@@ -169,7 +180,9 @@ async def responder(cliente, juego: str, show: dict, write: dict, posiciones: di
             {"type": "vuelto_answer", "ronda": ronda, "respuesta": vuelto_optimo(vuelto)}
         )
     elif juego == "silabas":
-        frase = show["frase"]
+        # La pantalla de respuesta debe traer la frase (antes llegaba vacía).
+        frase = write["frase"]
+        assert not show or frase == show["frase"], (write, show)
         await cliente.enviar(
             {"type": "silabas_answer", "ronda": ronda, "respuesta": TOTALES_SILABAS[frase]}
         )
@@ -235,6 +248,18 @@ async def jugar_individual(juego: str) -> None:
         assert len(comentarios) >= RONDAS_MINI[juego], (juego, len(comentarios))
         assert all(c["aceptada"] and c["acepta"] for c in comentarios), juego
 
+    if juego == "stroop":
+        shows = cliente.de_tipo("stroop_show")
+        hides = cliente.de_tipo("stroop_hide")
+        assert len(shows) == len(hides) == RONDAS_MINI["stroop"], (len(shows), len(hides))
+        duraciones = [show["duracion"] for show in shows]
+        assert duraciones[0] == exposicion_stroop(1), duraciones
+        assert duraciones[-1] == exposicion_stroop(RONDAS_MINI["stroop"]), duraciones
+        assert all(a >= b for a, b in zip(duraciones, duraciones[1:])), duraciones
+        assert all("palabra" in show and "tinta" in show for show in shows), shows
+        writes = cliente.de_tipo("stroop_write")
+        assert all("palabra" not in w and "tinta" not in w for w in writes), writes
+
     await cliente.cerrar()
     while servidor.salas:
         await asyncio.sleep(0.01)
@@ -263,6 +288,7 @@ async def jugar_fiesta(juego: str) -> None:
     await host.enviar({"type": "start", "juego": juego})
     vistos: dict[str, int] = {}
     posiciones: dict = {}
+    shows: dict[str, dict] = {}
     respondidas = 0
     fin = time.monotonic() + 30
     while time.monotonic() < fin and not host.de_tipo(f"{juego}_over"):
@@ -271,29 +297,66 @@ async def jugar_fiesta(juego: str) -> None:
             if indice < vistos.get(tipo, 0):
                 continue
             vistos[tipo] = indice + 1
-            if tipo == f"{juego}_show" and juego == "memoria":
-                posiciones = msg["posiciones"]
+            if tipo == f"{juego}_show":
+                shows[juego] = msg
+                if juego == "memoria":
+                    posiciones = msg["posiciones"]
         numero = len(host.de_tipo(f"{juego}_write"))
         if numero > respondidas and all(
             len(m.de_tipo(f"{juego}_write")) >= numero for m in mandos
         ):
             write = host.de_tipo(f"{juego}_write")[numero - 1]
+            if juego in SOLO_PANTALLA:
+                if juego == "stroop":
+                    # La palabra se borró con el _hide: no se reenvía al responder.
+                    assert not any(c in write for c in VISUAL_MINI[juego]), write
+                else:
+                    for clave in VISUAL_MINI[juego]:
+                        assert clave in write, (juego, clave, write)
             for mando in mandos:
-                await responder(mando, juego, {}, write, posiciones)
+                await responder(mando, juego, shows.get(juego, {}), write, posiciones)
             respondidas = numero
         await asyncio.sleep(0.01)
 
     assert host.de_tipo(f"{juego}_over"), f"No terminó la fiesta de {juego}"
+    if juego == "stroop":
+        hides = host.de_tipo("stroop_hide")
+        assert len(hides) == nucleo.RONDAS_FIESTA, len(hides)
+        assert all("duracion" in show for show in host.de_tipo("stroop_show"))
+        for mando in mandos:
+            assert len(mando.de_tipo("stroop_hide")) == nucleo.RONDAS_FIESTA
     for mando in mandos:
-        shows = mando.de_tipo(f"{juego}_show")
-        assert len(shows) == RONDAS_MINI[juego], (juego, len(shows))
-        for show in shows:
-            if juego == "memoria":
-                assert show["mira"] is True and "posiciones" not in show, show
+        shows_mando = mando.de_tipo(f"{juego}_show")
+        assert len(shows_mando) == nucleo.RONDAS_FIESTA, (juego, len(shows_mando))
+        for show in shows_mando:
+            if juego in SOLO_PANTALLA or juego == "memoria":
+                assert show["mira"] is True, show
+                claves = VISUAL_MINI.get(juego, ()) + (
+                    ("posiciones", "grilla") if juego == "memoria" else ()
+                )
+                assert not any(c in show for c in claves), show
             else:
                 assert "mira" not in show, show
                 secretos = ("vuelto", "optimo", "correcta", "orden", "resultado")
                 assert not any(c in show for c in secretos), show
+        writes_mando = mando.de_tipo(f"{juego}_write")
+        assert len(writes_mando) == nucleo.RONDAS_FIESTA, (juego, len(writes_mando))
+        for write in writes_mando:
+            if juego in SOLO_PANTALLA:
+                prohibidas = VISUAL_MINI[juego] + ("estimulo",)
+                assert not any(c in write for c in prohibidas), write
+        # El informe de la ronda se ve solo en la pantalla: el celular no
+        # recibe la respuesta correcta ni el desglose.
+        resultados_mando = mando.de_tipo(f"{juego}_result")
+        assert len(resultados_mando) == nucleo.RONDAS_FIESTA, (juego, len(resultados_mando))
+        for resultado in resultados_mando:
+            assert not any(
+                c in resultado for c in ("reto", "jugadores", "clasificacion", "acierto")
+            ), resultado
+
+    resultados_pantalla = host.de_tipo(f"{juego}_result")
+    assert len(resultados_pantalla) == nucleo.RONDAS_FIESTA, (juego, len(resultados_pantalla))
+    assert all("reto" in r for r in resultados_pantalla), resultados_pantalla
 
     podio = await host.esperar("podium_update")
     assert host_id not in podio["puntos_juego"], podio
@@ -308,13 +371,66 @@ async def jugar_fiesta(juego: str) -> None:
     print(f"  Fiesta {NOMBRES_MINI[juego]}: mandos responden, pantalla no puntúa, sin secretos")
 
 
+async def jugar_lista_fiesta() -> None:
+    """Lista elegida en el lobby: rondas y dificultad por juego, podio entre juegos."""
+    lista = ["vuelto", "silabas"]
+    ajustes = {"vuelto": {"rondas": 2, "dificultad": "dificil"}, "silabas": {"rondas": 3}}
+    host = Cliente(await websockets.connect(URL))
+    await host.enviar({"type": "fiesta", "nombre": "Pantalla"})
+    codigo = (await host.esperar("room_created"))["codigo"]
+    mandos = []
+    for nombre in ("Ana", "Beto"):
+        mando = Cliente(await websockets.connect(URL))
+        await mando.enviar({"type": "join", "nombre": nombre, "codigo": codigo})
+        await mando.esperar("room_joined")
+        mandos.append(mando)
+
+    await host.enviar({"type": "start", "juegos": lista, "ajustes": ajustes})
+    respondidas = {juego: 0 for juego in lista}
+    shows: dict[str, dict] = {}
+    fin = time.monotonic() + 60
+    while time.monotonic() < fin and not host.de_tipo("back_to_selector"):
+        for msg in host.recibidos:
+            for juego in lista:
+                if msg["type"] == f"{juego}_show":
+                    shows[juego] = msg
+        for juego in lista:
+            numero = len(host.de_tipo(f"{juego}_write"))
+            if numero > respondidas[juego] and all(
+                len(m.de_tipo(f"{juego}_write")) >= numero for m in mandos
+            ):
+                write = host.de_tipo(f"{juego}_write")[numero - 1]
+                for mando in mandos:
+                    await responder(mando, juego, shows.get(juego, {}), write, {})
+                respondidas[juego] = numero
+        await asyncio.sleep(0.01)
+
+    assert host.de_tipo("back_to_selector"), "La lista de fiesta no terminó"
+    assert len(host.de_tipo("vuelto_show")) == 2, len(host.de_tipo("vuelto_show"))
+    assert len(host.de_tipo("silabas_show")) == 3, len(host.de_tipo("silabas_show"))
+    assert all(s["dificultad"] == "DIFÍCIL" for s in host.de_tipo("vuelto_show"))
+    assert [s["ronda"] for s in host.de_tipo("vuelto_show")] == [1, 2]
+    podios = host.de_tipo("podium_update")
+    assert [p["siguiente"] for p in podios] == [NOMBRES_MINI["silabas"], ""], podios
+    assert len(host.de_tipo("back_to_selector")) == 1  # solo al acabar la lista
+    for mando in mandos:
+        await mando.cerrar()
+    await host.cerrar()
+    while servidor.salas:
+        await asyncio.sleep(0.01)
+    print("  Fiesta con lista: rondas y dificultad por juego, podio entre juegos")
+
+
 async def main() -> None:
+    assert brain_age_y_puntos(10.0, 0) == (10.0, 900)
+    assert brain_age_y_puntos(10.0, 2) == (20.0, 800), "5 s por error"
     print("Individual:")
     for juego in JUEGOS_MINI:
         await jugar_individual(juego)
     print("Fiesta:")
-    await jugar_fiesta("memoria")
-    await jugar_fiesta("vuelto")
+    for juego in ("memoria",) + SOLO_PANTALLA:
+        await jugar_fiesta(juego)
+    await jugar_lista_fiesta()
     await asyncio.sleep(0.1)
     assert not servidor.salas, f"Quedaron salas abiertas: {list(servidor.salas)}"
     print("\nOK - Siete minijuegos correctos en individual y fiesta")

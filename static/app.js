@@ -22,15 +22,21 @@
   let inviteUrl = "";
   let podioActual = [];
   let ultimaPila = [];
-  let saliendo = false;
   let animacion = null;
   let cuentaTimer = null;
   let avisoTimer = null;
   let teclaConteo = null;
   let conteoToken = null;
+  // La pantalla de la fiesta no recibe interacción del host: wake lock para
+  // que el SO no oscurezca el proyector mientras llegan rondas por WebSocket.
+  let wakeLock = null;
+  let wakeLockPidiendo = false;
   let conteosPajarosVivos = {};
   let confirmadosPajaros = [];
   let ultimoShowMini = {};
+  // MENOR A MAYOR: casillas tocadas que esperan la confirmación del servidor.
+  let pendientesMenor = [];
+  let rondaClasica = 1;
 
   const JUEGOS_MINI = [
     "stroop", "triangulos", "relojes", "menor", "memoria", "vuelto", "silabas",
@@ -44,6 +50,19 @@
     vuelto: "DAR VUELTO",
     silabas: "SÍLABAS",
   };
+  // Fiesta: juegos que el anfitrión encadena, con rondas y dificultad propias.
+  const JUEGOS_FIESTA = ["pajaros", "escritura", "cajas", "operaciones", ...JUEGOS_MINI];
+  const NOMBRES_FIESTA = {
+    pajaros: "HÁMSTERS", escritura: "PALABRAS", cajas: "CAJAS", operaciones: "OPERACIONES",
+    ...NOMBRES_MINI,
+  };
+  const DIFICULTADES = [["facil", "FÁCIL"], ["normal", "NORMAL"], ["dificil", "DIFÍCIL"]];
+  const RONDAS_FIESTA = { defecto: 5, min: 1, max: 20 };
+  const listaFiesta = new Set();
+  const ajustesFiesta = Object.fromEntries(
+    JUEGOS_FIESTA.map((j) => [j, { rondas: RONDAS_FIESTA.defecto, dificultad: "facil" }])
+  );
+
   const COLOR_HEX = {
     rojo: "#d33827",
     azul: "#1d4ed8",
@@ -54,19 +73,96 @@
     "_countdown", "_show", "_hide", "_write", "_feedback", "_done", "_result", "_over",
   ];
 
+  // Hámster pixel-art de frente (12×11). O borde, F pelo, B panza, E ojo,
+  // P rosa (orejas y mejillas), N nariz. Los colores salen de --pelo y --panza.
+  const HAMSTER_PIXELES = [
+    "..OO....OO..",
+    ".OPPO..OPPO.",
+    ".OFFFOOFFFO.",
+    "OFFFFFFFFFFO",
+    "OFEFFFFFFEFO",
+    "OFPFFNNFFPFO",
+    "OFFFBBBBFFFO",
+    "OFFBBBBBBFFO",
+    "OFFBBBBBBFFO",
+    ".OFFBBBBFFO.",
+    "..OOO..OOO..",
+  ];
+  const HAMSTER_COLOR = { O: "var(--tinta)", E: "var(--tinta)", N: "#e86a7a", P: "#f4a3b4", F: "var(--pelo)", B: "var(--panza)" };
   const AVE_SVG =
-    '<svg viewBox="0 0 48 30" aria-hidden="true">' +
-    '<path d="M3 23 Q13 4 24 20 Q35 4 45 23" fill="none" ' +
-    'stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>';
+    '<svg viewBox="0 0 12 11" shape-rendering="crispEdges" aria-hidden="true">' +
+    HAMSTER_PIXELES.flatMap((fila, y) =>
+      [...fila].map((c, x) => (HAMSTER_COLOR[c] ? `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${HAMSTER_COLOR[c]}"/>` : ""))
+    ).join("") +
+    "</svg>";
+  // Pelajes [pelo, panza]. Nivel 1: todos dorados; cada nivel suma un pelaje.
+  const PELAJES = [
+    ["#e3a24f", "#fbe6c4"], ["#9aa1a8", "#eef0f2"], ["#8a5a3b", "#ecd3b6"],
+    ["#f3ece0", "#ffffff"], ["#c9733a", "#f7d9b3"], ["#4a4540", "#d8d0c4"],
+  ];
 
   /* ---------- Utilidades ---------- */
+  // Solo la pantalla del anfitrión necesita blockers de suspensión: los mandos
+  // están tocando el celular constantemente. Se pide al entrar en juego/podio
+  // y se suelta al volver al lobby o al inicio. Si el navegador no lo soporta
+  // o lo rechaza, la partida sigue igual.
+  async function actualizarWakeLock() {
+    const activa = document.querySelector(".pantalla.activa")?.id;
+    const debeMantener = esPantallaFiesta() &&
+      (activa === "pantalla-juego" || activa === "pantalla-podio");
+
+    if (!debeMantener) {
+      if (wakeLock) {
+        const anterior = wakeLock;
+        wakeLock = null;
+        try { await anterior.release(); } catch (_) {}
+      }
+      return;
+    }
+    if (wakeLock || wakeLockPidiendo || !("wakeLock" in navigator)) return;
+
+    wakeLockPidiendo = true;
+    try {
+      const lock = await navigator.wakeLock.request("screen");
+      // El estado puede haber cambiado mientras se concedía el permiso.
+      const ahora = document.querySelector(".pantalla.activa")?.id;
+      if (!esPantallaFiesta() ||
+          (ahora !== "pantalla-juego" && ahora !== "pantalla-podio")) {
+        await lock.release();
+      } else {
+        wakeLock = lock;
+        lock.addEventListener("release", () => {
+          if (wakeLock === lock) wakeLock = null;
+        });
+      }
+    } catch (_) {
+      // Sin soporte, sin contexto seguro o permiso denegado: no es fatal.
+    } finally {
+      wakeLockPidiendo = false;
+    }
+  }
+
   function mostrar(id) {
     document.querySelectorAll(".pantalla").forEach((p) => p.classList.remove("activa"));
     $(id).classList.add("activa");
+    // Fuera del inicio siempre hay forma de volver.
+    $("btn-salir").hidden = id === "pantalla-inicio";
     // Al entrar, la grilla de juegos siempre arranca desde arriba.
     const selector = $("selector-individual");
     if (id === "pantalla-individual" && selector) selector.scrollTop = 0;
+    // La franja de avance vive solo mientras se juega; al salir se limpia.
+    const vivo = $("progreso-vivo");
+    if (vivo && id !== "pantalla-juego") {
+      vivo.hidden = true;
+      vivo.innerHTML = "";
+    }
+    actualizarWakeLock();
   }
+
+  // Nombre que se recorta con «…» si no cabe; el sufijo («(tú)», «· TÚ») nunca salta de línea.
+  const nombreHtml = (nombre, sufijo = "") =>
+    `<span class="nombre-txt">${escapeHtml(nombre)}</span>` +
+    (sufijo ? `<span class="nombre-sufijo">${sufijo}</span>` : "");
 
   function escapeHtml(texto) {
     return String(texto).replace(/[&<>"']/g, (c) =>
@@ -131,7 +227,8 @@
   function conectar(mensajeInicial) {
     if (ws && ws.readyState <= 1) ws.close();
     const protocolo = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${protocolo}//${location.host}/ws`);
+    const socket = new WebSocket(`${protocolo}//${location.host}/ws`);
+    ws = socket;
     ws.onopen = () => enviar(mensajeInicial);
     ws.onmessage = (evento) => {
       try {
@@ -140,8 +237,10 @@
         console.error("Mensaje inválido", error);
       }
     };
+    // onclose llega después de que el cliente cierra a propósito (salir o
+    // reconectar): solo es una pérdida real si este sigue siendo el socket activo.
     ws.onclose = () => {
-      if (!saliendo) aviso("Se perdió la conexión con el servidor");
+      if (ws === socket) aviso("Se perdió la conexión con el servidor");
     };
     ws.onerror = () => {
       $("error-inicio").textContent = "No se pudo conectar con el servidor";
@@ -150,7 +249,6 @@
 
   function volverAlInicio(mensaje) {
     detenerTimers();
-    saliendo = true;
     enviar({ type: "leave" });
     if (ws) ws.close();
     ws = null;
@@ -165,14 +263,12 @@
     esMando = false;
     juegoFiesta = null;
     podioActual = [];
-    $("btn-salir").hidden = true;
     $("error-inicio").textContent = "";
     $("error-invitado").textContent = "";
     $("codigo").value = "";
-    $("selector-fiesta").hidden = true;
+    $("lobby-control").hidden = true;
     $("podio-lobby").innerHTML = "";
     mostrar("pantalla-inicio");
-    saliendo = false;
     if (mensaje) aviso(mensaje);
   }
 
@@ -237,7 +333,7 @@
 
   $("btn-empezar-individual").addEventListener("click", () => {
     if (!juegosIndividuales.size) return;
-    const nombre = $("nombre").value.trim() || "Practicante";
+    const nombre = $("nombre").value.trim() || "Paciente";
     $("error-individual").textContent = "";
     conectar({ type: "individual", nombre, juegos: [...juegosIndividuales] });
   });
@@ -277,9 +373,75 @@
     }
   });
 
-  $("selector-fiesta").querySelectorAll("button[data-juego]").forEach((boton) => {
-    boton.addEventListener("click", () => enviar({ type: "start", juego: boton.dataset.juego }));
+  function pintarListaFiesta() {
+    $("lista-fiesta").innerHTML = JUEGOS_FIESTA.map((juego) => {
+      const activo = listaFiesta.has(juego);
+      const { rondas, dificultad } = ajustesFiesta[juego];
+      return `<div class="fila-juego ${activo ? "activa" : ""}" data-fila="${juego}">
+        <button type="button" class="fila-juego-nombre" data-alternar="${juego}" aria-pressed="${activo}">${NOMBRES_FIESTA[juego]}</button>
+        <div class="fila-juego-rondas" aria-label="Rondas de ${NOMBRES_FIESTA[juego]}">
+          <button type="button" data-rondas="${juego}" data-delta="-1" aria-label="Menos rondas" ${activo ? "" : "disabled"}>−</button>
+          <output>${rondas}</output>
+          <button type="button" data-rondas="${juego}" data-delta="1" aria-label="Más rondas" ${activo ? "" : "disabled"}>+</button>
+        </div>
+        <select data-dificultad="${juego}" aria-label="Dificultad de ${NOMBRES_FIESTA[juego]}" ${activo ? "" : "disabled"}>
+          ${DIFICULTADES.map(([valor, texto]) => `<option value="${valor}" ${valor === dificultad ? "selected" : ""}>${texto}</option>`).join("")}
+        </select>
+      </div>`;
+    }).join("");
+    actualizarBotonFiesta();
+  }
+
+  function actualizarBotonFiesta() {
+    const mandos = Object.keys(jugadores).filter((id) => id !== hostId).length;
+    const boton = $("btn-iniciar-fiesta");
+    boton.disabled = mandos < 1 || listaFiesta.size === 0;
+    boton.textContent = listaFiesta.size
+      ? `EMPEZAR · ${listaFiesta.size} JUEGO${listaFiesta.size === 1 ? "" : "S"}`
+      : "ELIGE AL MENOS UN JUEGO";
+    $("btn-fin-fiesta").disabled = mandos < 1;
+  }
+
+  $("lista-fiesta").addEventListener("click", (e) => {
+    const alternar = e.target.closest("[data-alternar]");
+    const rondas = e.target.closest("[data-rondas]");
+    if (alternar) {
+      const juego = alternar.dataset.alternar;
+      if (listaFiesta.has(juego)) listaFiesta.delete(juego);
+      else listaFiesta.add(juego);
+      pintarListaFiesta();
+    } else if (rondas && !rondas.disabled) {
+      const ajuste = ajustesFiesta[rondas.dataset.rondas];
+      ajuste.rondas = Math.min(
+        RONDAS_FIESTA.max,
+        Math.max(RONDAS_FIESTA.min, ajuste.rondas + Number(rondas.dataset.delta))
+      );
+      rondas.parentElement.querySelector("output").textContent = ajuste.rondas;
+    }
   });
+
+  $("lista-fiesta").addEventListener("change", (e) => {
+    const juego = e.target.dataset.dificultad;
+    if (juego) ajustesFiesta[juego].dificultad = e.target.value;
+  });
+
+  $("btn-fiesta-todos").addEventListener("click", () => {
+    JUEGOS_FIESTA.forEach((j) => listaFiesta.add(j));
+    pintarListaFiesta();
+  });
+  $("btn-fiesta-ninguno").addEventListener("click", () => {
+    listaFiesta.clear();
+    pintarListaFiesta();
+  });
+
+  $("btn-iniciar-fiesta").addEventListener("click", () => {
+    const juegos = JUEGOS_FIESTA.filter((j) => listaFiesta.has(j));
+    if (!juegos.length) return;
+    const ajustes = Object.fromEntries(juegos.map((j) => [j, ajustesFiesta[j]]));
+    enviar({ type: "start", juegos, ajustes });
+  });
+
+  pintarListaFiesta();
 
   $("btn-fin-fiesta").addEventListener("click", () => enviar({ type: "finish_fiesta" }));
 
@@ -290,7 +452,130 @@
     if (e.key === "Enter") $("btn-unirse").click();
   });
   $("btn-empezar").addEventListener("click", () => enviar({ type: "start" }));
-  $("btn-salir").addEventListener("click", () => volverAlInicio());
+  $("btn-salir").addEventListener("click", () => {
+    const enJuego = ["pantalla-juego", "pantalla-mando", "pantalla-podio"].some((id) =>
+      $(id).classList.contains("activa")
+    );
+    if (!enJuego) return volverAlInicio();
+    const dialogo = $("dialogo-salir");
+    dialogo.returnValue = "";
+    dialogo.showModal();
+  });
+  // Con el diálogo abierto, las teclas no llegan a los controles del juego.
+  window.addEventListener(
+    "keydown",
+    (e) => { if ($("dialogo-salir").open) e.stopImmediatePropagation(); },
+    true
+  );
+  // Esc o "SEGUIR JUGANDO" lo cierran sin salir; solo "SALIR" abandona.
+  $("dialogo-salir").addEventListener("close", (e) => {
+    if (e.target.returnValue === "si") volverAlInicio();
+  });
+
+  // El navegador libera el wake lock al ocultar la pestaña; al volver se
+  // reclama solo si la pantalla sigue siendo la del anfitrión en juego/podio.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) actualizarWakeLock();
+  });
+
+  /* ---------- Sonido (sintetizado con WebAudio, sin archivos) ---------- */
+  let audio = null;
+  let sonidoActivo = true;
+  try { sonidoActivo = localStorage.getItem("konitive-sonido") !== "off"; } catch (_) {}
+
+  function tono(frecuencia, duracion, { tipo = "triangle", volumen = 0.08, hasta = null, retraso = 0 } = {}) {
+    if (!sonidoActivo) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+      const t = audio.currentTime + retraso;
+      const osc = audio.createOscillator();
+      const gan = audio.createGain();
+      osc.type = tipo;
+      osc.frequency.setValueAtTime(frecuencia, t);
+      if (hasta) osc.frequency.exponentialRampToValueAtTime(hasta, t + duracion);
+      gan.gain.setValueAtTime(0.0001, t);
+      gan.gain.exponentialRampToValueAtTime(volumen, t + 0.01);
+      gan.gain.exponentialRampToValueAtTime(0.0001, t + duracion);
+      osc.connect(gan).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + duracion + 0.02);
+    } catch (_) {
+      /* sin audio disponible: el juego sigue en silencio */
+    }
+  }
+  const notas = (lista, paso = 0.09, opciones = {}) =>
+    lista.forEach((f, i) => tono(f, paso * 1.6, { ...opciones, retraso: i * paso }));
+
+  const SONIDOS = {
+    click: () => tono(880, 0.04, { tipo: "square", volumen: 0.035 }),
+    tic: () => tono(660, 0.07, { volumen: 0.07 }),
+    aparece: () => tono(480, 0.12, { tipo: "sine", hasta: 960, volumen: 0.07 }),
+    bien: () => notas([660, 990], 0.08),
+    mal: () => tono(240, 0.22, { tipo: "square", hasta: 140, volumen: 0.05 }),
+    conectar: () => notas([523, 784], 0.08, { tipo: "sine" }),
+    salida: () => notas([523, 392], 0.1, { tipo: "sine" }),
+    inicio: () => notas([523, 659, 784], 0.08),
+    resultado: () => notas([784, 988], 0.07, { tipo: "sine" }),
+    podio: () => notas([784, 988, 1175], 0.1),
+    fanfarria: () => notas([523, 659, 784, 1047], 0.11),
+  };
+  const sonar = (nombre) => SONIDOS[nombre]?.();
+
+  function sonidoMensaje(msg) {
+    const t = msg.type || "";
+    const mio = (msg.jugadores || {})[yoId];
+    if (["room_created", "room_joined", "player_joined"].includes(t)) sonar("conectar");
+    else if (["player_left", "opponent_left"].includes(t)) sonar("salida");
+    else if (t === "error") sonar("mal");
+    else if (["match_start", "individual_game_start", "round_start", "tiebreak_start"].includes(t)) sonar("inicio");
+    else if (t.endsWith("_show")) sonar("aparece");
+    else if (t.endsWith("_feedback")) sonar(msg.aceptada ? "bien" : "mal");
+    else if (t === "round_result") sonar(msg.ganador === yoId ? "bien" : msg.ganador ? "mal" : "resultado");
+    else if (t.endsWith("_result")) sonar(mio && "acierto" in mio ? (mio.acierto ? "bien" : "mal") : "resultado");
+    else if (t === "podium_update") sonar("podio");
+    else if (t === "podium_final" || t === "match_over" || t.endsWith("_over") || t === "individual_summary") sonar("fanfarria");
+  }
+
+  // Un clic suave en cada botón (incluidos los generados por los juegos).
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const boton = e.target.closest("button, select");
+      if (boton && !boton.disabled) sonar("click");
+    },
+    true
+  );
+  // Flechas y Enter de los contadores también suenan.
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"].includes(e.key)) sonar("click");
+    },
+    true
+  );
+  // Tic en cada número de las cuentas regresivas (todas usan #cuenta-previa-numero).
+  let ultimoTic = null;
+  new MutationObserver(() => {
+    const el = document.getElementById("cuenta-previa-numero");
+    const texto = el ? el.textContent : null;
+    if (texto && texto !== ultimoTic) sonar("tic");
+    ultimoTic = texto;
+  }).observe(document.getElementById("app"), { childList: true, subtree: true, characterData: true });
+
+  function pintarBotonSonido() {
+    const b = $("btn-sonido");
+    b.textContent = sonidoActivo ? "♪ ON" : "♪ OFF";
+    b.setAttribute("aria-pressed", String(sonidoActivo));
+    b.setAttribute("aria-label", sonidoActivo ? "Sonido activado" : "Sonido desactivado");
+  }
+  $("btn-sonido").addEventListener("click", () => {
+    sonidoActivo = !sonidoActivo;
+    try { localStorage.setItem("konitive-sonido", sonidoActivo ? "on" : "off"); } catch (_) {}
+    pintarBotonSonido();
+    sonar("click");
+  });
+  pintarBotonSonido();
 
   /* ---------- Lobby y marcador ---------- */
   function actualizarLobby() {
@@ -303,7 +588,7 @@
       : entradas;
     const fichaPantalla = modoFiesta
       ? `<div class="ficha-pantalla"><span class="rol">PANTALLA</span>` +
-        `${escapeHtml(jugadores[hostId] || "ANFITRIÓN")}${hostId === yoId ? " (tú)" : ""}</div>`
+        `${nombreHtml(jugadores[hostId] || "ANFITRIÓN", hostId === yoId ? " (tú)" : "")}</div>`
       : "";
 
     $("lista-jugadores").innerHTML =
@@ -314,7 +599,7 @@
             const rol = modoFiesta ? "MANDO" : id === hostId ? "ANFITRIÓN" : "INVITADO";
             return `<div class="ficha-jugador"><span class="num">0${i + 1}</span>` +
               `<span class="conectado" title="Conectado"></span>` +
-              `${escapeHtml(nombre)}${id === yoId ? " (tú)" : ""}` +
+              `${nombreHtml(nombre, id === yoId ? " (tú)" : "")}` +
               `<span class="rol">${rol}</span></div>`;
           }
         )
@@ -335,7 +620,7 @@
           .map(
             ([id, nombre]) =>
               `<div class="ficha-jugador"><span class="conectado"></span>` +
-              `${escapeHtml(nombre)}${id === yoId ? " (tú)" : ""}` +
+              `${nombreHtml(nombre, id === yoId ? " (tú)" : "")}` +
               `<span class="rol">MANDO</span></div>`
           )
           .join("");
@@ -344,14 +629,15 @@
     const mandos = participantes.length;
     if (modoFiesta) {
       $("btn-empezar").hidden = true;
-      $("selector-fiesta").hidden = yoId !== hostId;
-      $("selector-fiesta")
-        .querySelectorAll("button[data-juego]")
-        .forEach((boton) => (boton.disabled = mandos < 1));
-      $("btn-fin-fiesta").disabled = mandos < 1;
-      $("estado-lobby").textContent =
-        `${mandos} mando(s) conectado(s). El anfitrión elige el juego.`;
+      $("lobby-control").hidden = yoId !== hostId;
+      $("lobby-grid").classList.toggle("con-control", yoId === hostId);
+      actualizarBotonFiesta();
+      $("estado-lobby").textContent = mandos
+        ? `${mandos} mando(s) conectado(s). Elige los juegos y pulsa EMPEZAR.`
+        : "Esperando mandos: escanea el QR con el celular.";
     } else {
+      $("lobby-control").hidden = true;
+      $("lobby-grid").classList.remove("con-control");
       const listo = entradas.length === 2;
       const boton = $("btn-empezar");
       boton.hidden = false;
@@ -369,13 +655,27 @@
 
   function actualizarMarcador(datos) {
     if (datos) marcador = datos;
+    if (esMandoFiesta()) {
+      // El celular solo ve lo suyo: nunca el marcador de los otros mandos.
+      const bruto = (marcador[juegoFiesta] || {})[yoId];
+      const dato = bruto && typeof bruto === "object" ? bruto : {};
+      const puntos = dato.puntos ?? bruto ?? 0;
+      const ronda = dato.ronda ?? (juegoFiesta === "pajaros" ? rondaClasica : 0);
+      $("marcador-0").innerHTML =
+        `<div class="nombre">${nombreHtml(jugadores[yoId] || "TÚ", " · TÚ")}</div>` +
+        `<div class="detalle">PUNTOS <b>${puntos}</b></div>`;
+      $("marcador-1").innerHTML =
+        `<div class="nombre">RONDA ${ronda}</div>` +
+        `<div class="detalle">ACIERTOS <b>${dato.aciertos ?? 0}</b></div>`;
+      return;
+    }
     if (marcador.cajas) {
       const ids = Object.keys(marcador.cajas);
       const id = ids.includes(yoId) ? yoId : ids[0];
       const dato = marcador.cajas[id] || {};
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
-        `<div class="nombre">${escapeHtml(nombre)}${id === yoId ? " (tú)" : ""}</div>` +
+        `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
         `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
@@ -389,7 +689,7 @@
       const dato = marcador.operaciones[id] || {};
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
-        `<div class="nombre">${escapeHtml(nombre)}${id === yoId ? " (tú)" : ""}</div>` +
+        `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
         `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
@@ -403,7 +703,7 @@
       const dato = marcador[claveMini][id] || {};
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
-        `<div class="nombre">${escapeHtml(nombre)}${id === yoId ? " (tú)" : ""}</div>` +
+        `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
         `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
@@ -414,6 +714,13 @@
     [0, 1].forEach((i) => {
       const id = ids[i];
       const caja = $(`marcador-${i}`);
+      if (i === 1 && ids.length === 1) {
+        // Jugando solo, el segundo cuadro muestra la ronda en vez de un rival.
+        caja.innerHTML =
+          `<div class="nombre">RONDA ${rondaClasica}</div>` +
+          `<div class="detalle">${modoFiesta ? "1 JUGADOR" : `META <b>${marcador.necesario || 3}</b> ACIERTOS`}</div>`;
+        return;
+      }
       if (!id || !jugadores[id]) {
         caja.innerHTML = "";
         return;
@@ -421,8 +728,8 @@
       const aves = marcador.pajaros[id] || 0;
       const letras = marcador.escritura[id] || 0;
       caja.innerHTML =
-        `<div class="nombre">${escapeHtml(jugadores[id])}${id === yoId ? " (tú)" : ""}</div>` +
-        `<div class="detalle">PÁJAROS <b>${aves}</b> · PALABRAS <b>${letras}</b></div>`;
+        `<div class="nombre">${nombreHtml(jugadores[id], id === yoId ? " (tú)" : "")}</div>` +
+        `<div class="detalle">HÁMSTERS <b>${aves}</b> · PALABRAS <b>${letras}</b></div>`;
     });
   }
 
@@ -432,12 +739,14 @@
     const participantes = modoFiesta
       ? Object.entries(jugadores).filter(([id]) => id !== hostId)
       : Object.entries(jugadores);
+    // Jugando solo no hay con quién compararse: el panel se oculta.
+    caja.hidden = participantes.length < 2;
     caja.innerHTML = participantes
       .map(([id, nombre]) => {
         const listo = confirmados.includes(id);
         const valor = conteos[id] ?? 0;
         return `<div class="conteo-vivo ${id === yoId ? "propio" : ""} ${listo ? "listo" : ""}">
-          <span class="quien">${escapeHtml(nombre)}${id === yoId ? " · TÚ" : ""}</span>
+          <span class="quien">${nombreHtml(nombre, id === yoId ? " · TÚ" : "")}</span>
           <span class="numero">${valor}</span>
           <span class="estado">${listo ? "CONFIRMADO" : "CONTANDO"}</span>
         </div>`;
@@ -458,6 +767,18 @@
     if (barraDuracion) actualizarBarraCajas(barraDuracion);
   }
 
+  // En FIESTA el informe de cada ronda es cosa de la pantalla. El mando solo
+  // espera: así la respuesta correcta no aparece nunca en el celular.
+  function resultadoSoloEnPantalla() {
+    if (!esMandoFiesta()) return false;
+    mostrarEspera(
+      "MODO FIESTA · INFORME",
+      "MÍRALO EN LA PANTALLA",
+      "El resultado de la ronda aparece solo en la pantalla. Prepara la siguiente."
+    );
+    return true;
+  }
+
   function actualizarBarraCajas(duracion) {
     const barra = $("barra-tiempo");
     if (!barra || !duracion) return;
@@ -475,6 +796,7 @@
   }
 
   function manejar(msg) {
+    sonidoMensaje(msg);
     switch (msg.type) {
       case "room_created":
       case "room_joined": {
@@ -489,7 +811,6 @@
         secuenciaIndividual = msg.modo === "individual";
         esPantalla = modoFiesta && yoId === hostId;
         esMando = modoFiesta && msg.rol === "mando";
-        $("btn-salir").hidden = false;
         if (modoFiesta && esMando) {
           $("mando-nombre").textContent = jugadores[yoId] || "JUGADOR";
           $("mando-estado").textContent =
@@ -539,7 +860,6 @@
           <h2 class="panel-titulo">${escapeHtml(msg.nombre_juego)}</h2>
           <p class="pista">Prepara la atención y la memoria. Empieza enseguida…</p>
         </div>`;
-        $("btn-salir").hidden = false;
         mostrar("pantalla-juego");
         break;
 
@@ -551,13 +871,25 @@
         actualizarProgresoMini(msg);
         break;
 
+      case "progreso_vivo":
+        mostrarProgresoVivo(msg);
+        break;
+
+      case "fin_fiesta":
+        if (esMandoFiesta()) {
+          $("mando-estado").textContent =
+            "FIESTA TERMINADA · USA «SALIR» PARA VOLVER AL INICIO";
+          $("mando-lista").innerHTML = "";
+          mostrar("pantalla-mando");
+        }
+        break;
+
       case "match_start":
-        marcador = msg.marcador;
+        marcador = msg.marcador || marcador || { pajaros: {}, escritura: {}, necesario: 3 };
         modoPractica = Boolean(msg.practica);
         modoCajas = msg.modo === "cajas";
         modoOperaciones = msg.modo === "operaciones";
         juegoFiesta = msg.juego_fiesta || juegoFiesta;
-        $("btn-salir").hidden = false;
         mostrar("pantalla-juego");
         actualizarMarcador();
         if (JUEGOS_MINI.includes(msg.modo)) {
@@ -575,12 +907,20 @@
         iniciarRonda(msg);
         break;
 
+      case "birds_countdown":
+        mostrarCuentaPrevia(msg, {
+          kicker: "FASE 01 · PREPARA LA VISTA",
+          pie: "LOS HÁMSTERS APARECERÁN DESPUÉS",
+          glifo: "◎",
+        });
+        break;
+
       case "birds_show":
         if (esMandoFiesta()) {
           mostrarEspera(
             "MIRA LA PANTALLA",
             "¡A CONTAR!",
-            "Las aves aparecen en la pantalla del anfitrión."
+            "Los hámsters aparecen en la pantalla del anfitrión."
           );
         } else {
           mostrarPajaros(msg);
@@ -633,11 +973,11 @@
         break;
 
       case "round_result":
-        mostrarResultadoRonda(msg);
+        if (!resultadoSoloEnPantalla()) mostrarResultadoRonda(msg);
         break;
 
       case "minigame_result":
-        aviso(`${msg.nombre} SE LLEVA ${msg.juego === "pajaros" ? "PÁJAROS" : "PALABRAS"}`);
+        aviso(`${msg.nombre} SE LLEVA ${msg.juego === "pajaros" ? "HÁMSTERS" : "PALABRAS"}`);
         break;
 
       case "tiebreak_start":
@@ -674,7 +1014,7 @@
         break;
 
       case "cajas_result":
-        mostrarResultadoCajas(msg);
+        if (!resultadoSoloEnPantalla()) mostrarResultadoCajas(msg);
         break;
 
       case "cajas_over":
@@ -717,7 +1057,7 @@
         break;
 
       case "operacion_result":
-        mostrarResultadoOperaciones(msg);
+        if (!resultadoSoloEnPantalla()) mostrarResultadoOperaciones(msg);
         break;
 
       case "operacion_over":
@@ -754,6 +1094,15 @@
         modoCajas = false;
         modoOperaciones = false;
         juegoFiesta = null;
+        if (msg.jugadores) jugadores = msg.jugadores;
+        if (msg.host) hostId = msg.host;
+        if (esMandoFiesta()) {
+          $("mando-estado").textContent =
+            "Sala de espera · el anfitrión elige el siguiente juego…";
+          $("mando-lista").innerHTML = "";
+          mostrar("pantalla-mando");
+          break;
+        }
         actualizarMarcador(msg.marcador);
         actualizarLobby();
         mostrar("pantalla-lobby");
@@ -804,19 +1153,21 @@
   }
 
   function trianguloHtml(reto, mostrarResultados = false) {
+    // Pirámide en rejilla de 5 columnas: cada casilla del medio queda bajo el
+    // par que la forma, con flechas, para que no se lea como a + b + c.
     const [a, b, c] = reto.top || [];
     const [o1, o2] = reto.ops || [];
     const [i1, i2] = reto.intermedios || ["?", "?"];
-    return `<div class="triangulo">
-      <div class="tri-fila tri-arriba">
-        <span>${a}</span><b>${o1}</b><span>${b}</span><b>${o2}</b><span>${c}</span>
-      </div>
-      <div class="tri-fila tri-medio">
-        <span>${mostrarResultados ? i1 : "?"}</span><b>${reto.op_final || "?"}</b><span>${mostrarResultados ? i2 : "?"}</span>
-      </div>
-      <div class="tri-fila tri-final">
-        <span>${mostrarResultados ? reto.resultado : "?"}</span>
-      </div>
+    const ver = (v) => (mostrarResultados ? v : "?");
+    const op = (o) => `<b class="tri-op">${o === "-" ? "−" : o}</b>`;
+    const fl = (f) => `<i class="tri-flecha" aria-hidden="true">${f}</i>`;
+    const nota = (t) => `<small class="tri-nota">${t}</small>`;
+    return `<div class="triangulo" aria-label="Pirámide: ${a} ${o1} ${b} y ${b} ${o2} ${c}, luego se operan los dos resultados">
+      <span class="tri-num">${a}</span>${op(o1)}<span class="tri-num">${b}</span>${op(o2)}<span class="tri-num">${c}</span>${nota("")}
+      ${fl("↘")}<span></span>${fl("↙ ↘")}<span></span>${fl("↙")}${nota("")}
+      <span></span><span class="tri-num tri-medio">${ver(i1)}</span>${op(reto.op_final || "?")}<span class="tri-num tri-medio">${ver(i2)}</span><span></span>${nota(`${a}${o1}${b} · ${b}${o2}${c}`)}
+      <span></span>${fl("↘")}<span></span>${fl("↙")}<span></span>${nota("")}
+      <span></span><span></span><span class="tri-num tri-final">${ver(reto.resultado)}</span><span></span><span></span>${nota("RESULTADO")}
     </div>`;
   }
 
@@ -849,6 +1200,59 @@
       <span class="despertador-hora">${String(hora % 12 || 12).padStart(2, "0")}</span>
       <span class="despertador-puntos">:</span>
       <span class="despertador-min">${String(minuto).padStart(2, "0")}</span>
+    </div>`;
+  }
+
+  // Un mismo dibujo para el estímulo y para la pantalla que sigue mostrándolo
+  // mientras los mandos responden. El celular nunca recibe estos datos.
+  function visualMini(juego, datos, compacta = false) {
+    if (juego === "stroop") {
+      if (!datos.tinta) return "";
+      return `<div class="stroop-palabra" style="color:${COLOR_HEX[datos.tinta] || "#1c1a17"}">${escapeHtml((datos.palabra || "").toUpperCase())}</div>`;
+    }
+    if (juego === "triangulos") {
+      return datos.top ? trianguloHtml(datos) : "";
+    }
+    if (juego === "relojes") {
+      if (!datos.reloj1) return "";
+      const [h1, m1] = datos.reloj1;
+      const [h2, m2] = datos.reloj2 || [12, 0];
+      return `<div class="relojes">
+        <div>${relojDespertador(h1, m1)}<span>PRIMERO · ${escapeHtml(datos.periodo1 || "")}</span></div>
+        <div class="reloj-flecha">→</div>
+        <div>${relojDespertador(h2, m2)}<span>DESPUÉS · ${escapeHtml(datos.periodo2 || "")}</span></div>
+      </div>`;
+    }
+    if (juego === "vuelto") {
+      if (!datos.precio_texto) return "";
+      return compacta
+        ? `<div class="vuelto-escena compacta">
+            <span>${escapeHtml(datos.producto?.nombre || "")} ${escapeHtml(datos.precio_texto)}</span>
+            <span>PAGÓ ${escapeHtml(datos.pago_texto || "")}</span>
+          </div>`
+        : `<div class="vuelto-escena">
+            <div class="vuelto-nombre">${escapeHtml(datos.producto?.nombre || "PRODUCTO")}</div>
+            <div class="vuelto-precio">${escapeHtml(datos.precio_texto)}</div>
+            <div class="vuelto-pago">EL CLIENTE PAGÓ CON <b>${escapeHtml(datos.pago_texto || "")}</b></div>
+          </div>`;
+    }
+    if (juego === "silabas") {
+      return datos.frase ? `<div class="frase-silabas">${escapeHtml(datos.frase.toUpperCase())}</div>` : "";
+    }
+    return "";
+  }
+
+  function miraPantallaHtml(texto = "MIRA LA PANTALLA") {
+    return `<div class="mira-pantalla"><b>${texto}</b><span>Y responde aquí</span></div>`;
+  }
+
+  // Celular: todo apilado. PC: el visual grande a la izquierda y los controles a la derecha (como CAJAS).
+  function panelAmplio(arriba, visual, abajo, clases = "", ref = "") {
+    return `<div class="panel panel-escena panel-amplio ${clases}">
+      <div class="amplio-arriba">${arriba}</div>
+      ${ref ? `<div class="amplio-ref">${ref}</div>` : ""}
+      <div class="amplio-visual">${visual}</div>
+      <div class="amplio-abajo">${abajo}</div>
     </div>`;
   }
 
@@ -886,52 +1290,59 @@
     const comun = `<p class="kicker">${escapeHtml(NOMBRES_MINI[juego])} · ${etiquetaRonda(msg)}</p>`;
     let cuerpo = "";
     if (juego === "stroop") {
-      cuerpo = `<div class="stroop-palabra" style="color:${COLOR_HEX[msg.tinta] || "#1c1a17"}">${escapeHtml((msg.palabra || "").toUpperCase())}</div>
-        <p class="pista">Di el COLOR DE LA TINTA, no lo que dice la palabra.</p>`;
+      cuerpo = [
+        visualMini(juego, msg),
+        (msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : "") +
+          '<p class="pista">Di el COLOR DE LA TINTA, no lo que dice la palabra. ¡Se borra rápido!</p>',
+      ];
     } else if (juego === "triangulos") {
-      cuerpo = trianguloHtml(msg) + '<p class="pista">Calcula los dos resultados intermedios y escribe solo el final.</p>';
+      cuerpo = [visualMini(juego, msg), '<p class="pista">Opera cada par vecino hacia abajo (el número del centro se usa dos veces) y escribe solo el resultado final.</p>'];
     } else if (juego === "relojes") {
-      const [h1, m1] = msg.reloj1 || [12, 0];
-      const [h2, m2] = msg.reloj2 || [12, 0];
-      cuerpo = `<div class="relojes">
-        <div>${relojSvg(h1, m1)}<span>PRIMERO</span></div>
-        <div class="reloj-flecha">→</div>
-        <div>${relojSvg(h2, m2)}<span>DESPUÉS</span></div>
-      </div><p class="pista">¿Cuánto tiempo pasó? Escribe horas y minutos con dos cifras cada uno.</p>`;
+      cuerpo = [visualMini(juego, msg), '<p class="pista">¿Cuánto tiempo pasó hacia adelante? Fíjate si es a. m. (mañana) o p. m. (tarde).</p>'];
     } else if (juego === "menor") {
       cuerpo = grillaMenorHtml(msg.numeros, false) + '<p class="pista">Recuerda la posición de cada número.</p>';
     } else if (juego === "memoria") {
-      cuerpo = grillaMemoriaHtml(msg.grilla, msg.celdas, true, msg.posiciones, []) +
-        (msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : "");
+      cuerpo = [grillaMemoriaHtml(msg.grilla, msg.celdas, true, msg.posiciones, []),
+        msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : ""];
     } else if (juego === "vuelto") {
-      cuerpo = `<div class="vuelto-escena">
-        <div class="vuelto-icono">${msg.producto?.icono || "🛒"}</div>
-        <div class="vuelto-nombre">${escapeHtml(msg.producto?.nombre || "PRODUCTO")}</div>
-        <div class="vuelto-precio">${escapeHtml(msg.precio_texto || "")}</div>
-        <div class="vuelto-pago">EL CLIENTE PAGÓ CON <b>${escapeHtml(msg.pago_texto || "")}</b></div>
-      </div><p class="pista">Prepara el vuelto exacto en tu celular.</p>`;
+      cuerpo = [visualMini(juego, msg), '<p class="pista">Prepara el vuelto exacto en tu celular.</p>'];
     } else if (juego === "silabas") {
-      cuerpo = `<div class="frase-silabas">${escapeHtml(msg.frase || "")}</div>
-        <p class="pista">Cuenta las sílabas gramaticales de toda la frase, palabra por palabra.</p>`;
+      cuerpo = [visualMini(juego, msg),
+        '<p class="pista">Cuenta las sílabas gramaticales de toda la frase, palabra por palabra.</p>'];
     }
-    $("contenido").innerHTML = `<div class="panel panel-escena">${comun}${cuerpo}</div>`;
-    if (juego === "memoria" && msg.duracion) actualizarBarraCajas(msg.duracion);
+    // [visual, abajo]; menor a mayor ya tiene su propio campo a lo ancho.
+    $("contenido").innerHTML = Array.isArray(cuerpo)
+      ? panelAmplio(comun, cuerpo[0], cuerpo[1], `estimulo-${juego}`)
+      : `<div class="panel panel-escena">${comun}${cuerpo}</div>`;
+    if ((juego === "memoria" || juego === "stroop") && msg.duracion) actualizarBarraCajas(msg.duracion);
   }
 
   function prepararRespuestaMini(juego, msg) {
+    const mando = esMandoFiesta();
     if (esPantallaFiesta()) {
+      const visual = visualMini(juego, msg, juego === "vuelto");
+      if (visual) {
+        $("contenido").innerHTML = panelAmplio(
+          '<p class="kicker">PANTALLA · ESPECTADOR</p>',
+          visual,
+          '<p class="pista">LOS MANDOS ESTÁN RESPONDIENDO…</p>',
+          `respuesta-${juego} pantalla-espectadora`
+        );
+        return;
+      }
       mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…", "Los mandos están respondiendo.");
       return;
     }
     $("etiqueta-ronda").textContent = etiquetaRonda(msg);
     $("titulo-juego").textContent = NOMBRES_MINI[juego] || juego.toUpperCase();
     if (juego === "triangulos") {
-      const estimulo = msg.estimulo || {};
+      const estimulo = mando ? null : (msg.estimulo || {});
       iniciarCanvasEscritura({
-        kicker: `${NOMBRES_MINI[juego]} · ${etiquetaRonda(msg)}`,
-        recordatorio: trianguloHtml(estimulo),
-        pista: `Escribe el resultado con ${msg.digitos || 2} cifras. Puedes corregir con LIMPIAR.`,
+        kicker: mando ? "MIRA LA PANTALLA · ESCRIBE EL RESULTADO" : `${NOMBRES_MINI[juego]} · ${etiquetaRonda(msg)}`,
+        recordatorio: estimulo?.top ? trianguloHtml(estimulo) : "",
+        pista: mando ? "Calcula mirando la PC y escribe solo el resultado final aquí." : "",
         tipoMensaje: `${juego}_digit`,
+        extra: { ronda: msg.ronda },
         feedbackAceptada: (fb) => `✓ ${fb.esperada ?? ""} · BIEN`,
         feedbackRechazada: (fb) => `✗ PARECE ${fb.predicha ?? "?"} · INTENTO ${fb.intentos || 1}/3`,
         terminoTexto: "RESPUESTA COMPLETA · ESPERANDO",
@@ -942,10 +1353,11 @@
     }
 
     if (juego === "silabas") {
-      $("contenido").innerHTML = `<div class="panel panel-escena">
-        <p class="kicker">CONTAR SÍLABAS · ${etiquetaRonda(msg)}</p>
-        <div class="frase-silabas">${escapeHtml((msg.frase || "")).toUpperCase()}</div>
-        <p class="pista">Cuenta las sílabas gramaticales de toda la frase.</p>
+      const frase = mando ? "" : (msg.frase || "");
+      $("contenido").innerHTML = panelAmplio(
+        `<p class="kicker">${mando ? "MIRA LA PANTALLA · CUENTA SÍLABAS" : `CONTAR SÍLABAS · ${etiquetaRonda(msg)}`}</p>`,
+        frase ? `<div class="frase-silabas">${escapeHtml(frase.toUpperCase())}</div>` : miraPantallaHtml(),
+        `<p class="pista">${mando ? "Cuenta en la PC y marca el total aquí." : "Cuenta las sílabas gramaticales de toda la frase."}</p>
         <div class="stepper">
           <button id="btn-menos" class="stepper-boton" aria-label="Quitar uno">−</button>
           <output id="cuenta-valor" class="stepper-valor" aria-live="polite">0</output>
@@ -953,8 +1365,9 @@
         </div>
         <p class="pista stepper-ayuda">Usa los botones o las flechas arriba y abajo.</p>
         <button id="btn-responder" class="boton rojo">CONFIRMAR</button>
-        <div class="mini-progreso" id="mini-progreso"></div>
-      </div>`;
+        <div class="mini-progreso" id="mini-progreso"></div>`,
+        "respuesta-silabas"
+      );
       let valor = 0;
       let confirmado = false;
       function cambiar(delta) {
@@ -987,70 +1400,89 @@
     }
 
     if (juego === "relojes") {
-      const show = ultimoShowMini["relojes"] || {};
-      const [h1, m1] = show.reloj1 || [12, 0];
-      const [h2, m2] = show.reloj2 || [12, 0];
-      $("contenido").innerHTML = `<div class="panel panel-escena">
-        <p class="kicker">RELOJES · ${etiquetaRonda(msg)}</p>
-        <div class="relojes compacto">
-          <div>${relojDespertador(h1, m1)}<span>PRIMERO</span></div>
-          <div class="reloj-flecha">→</div>
-          <div>${relojDespertador(h2, m2)}<span>DESPUÉS</span></div>
+      const show = mando ? {} : (msg.reloj1 ? msg : (ultimoShowMini["relojes"] || {}));
+      $("contenido").innerHTML = panelAmplio(
+        `<p class="kicker">${mando ? "MIRA LA PANTALLA · CALCULA LA DIFERENCIA" : `RELOJES · ${etiquetaRonda(msg)}`}</p>`,
+        mando ? miraPantallaHtml() : (visualMini("relojes", show) || miraPantallaHtml()),
+        `<div class="steppers-reloj">
+          ${[["horas", "HORAS"], ["minutos", "MINUTOS"]].map(([campo, etiqueta]) =>
+            `<div class="stepper-campo" data-campo-reloj="${campo}">
+              <span>${etiqueta}</span>
+              <div class="stepper">
+                <button type="button" class="stepper-boton" data-campo="${campo}" data-delta="-1" aria-label="Quitar ${etiqueta.toLowerCase()}">−</button>
+                <output class="stepper-valor" id="reloj-${campo}" aria-live="polite">00</output>
+                <button type="button" class="stepper-boton" data-campo="${campo}" data-delta="1" aria-label="Agregar ${etiqueta.toLowerCase()}">+</button>
+              </div>
+            </div>`
+          ).join("")}
         </div>
-        <div class="despertador-respuesta">
-          <div class="despertador-display" id="despertador-display">00:00</div>
-          <div class="despertador-botones">
-            <button type="button" class="boton despierta-ajuste" data-ajuste="horas" data-signo="+1">+1 HORA</button>
-            <button type="button" class="boton despierta-ajuste" data-ajuste="horas" data-signo="-1">−1 HORA</button>
-            <button type="button" class="boton despierta-ajuste" data-ajuste="minutos" data-signo="+15">+15 MIN</button>
-            <button type="button" class="boton despierta-ajuste" data-ajuste="minutos" data-signo="-15">−15 MIN</button>
-          </div>
-          <p class="pista">Ajusta las horas y minutos y pulsa LISTO.</p>
-          <button type="button" class="boton rojo" id="btn-despertador-listo">LISTO ✓</button>
-        </div>
-        <div class="mini-progreso" id="mini-progreso"></div>
-      </div>`;
-      let horas = 0;
-      let minutos = 0;
-      function actualizarDisplay() {
-        const el = $("despertador-display");
-        if (el) el.textContent = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
-      }
-      actualizarDisplay();
-      $("contenido").querySelectorAll(".despierta-ajuste").forEach((boton) => {
-        boton.addEventListener("click", () => {
-          const ajuste = boton.dataset.ajuste;
-          const signo = Number(boton.dataset.signo);
-          if (ajuste === "horas") {
-            horas = ((horas + signo) % 12 + 12) % 12;
-            if (horas === 0) horas = 12;
-          } else {
-            minutos = ((minutos + signo) % 60 + 60) % 60;
-          }
-          actualizarDisplay();
-        });
+        <p class="pista stepper-ayuda">Flechas ← → eligen horas o minutos; ↑ ↓ cambian el número; Enter confirma.</p>
+        <button type="button" class="boton rojo" id="btn-responder">CONFIRMAR</button>
+        <div class="mini-progreso" id="mini-progreso"></div>`,
+        "respuesta-relojes"
+      );
+      // Las respuestas válidas: 0-11 horas y minutos de 15 en 15.
+      const LIMITES = { horas: [0, 11, 1], minutos: [0, 45, 15] };
+      const valores = { horas: 0, minutos: 0 };
+      let activo = "horas";
+      let confirmado = false;
+      const enfocar = (campo) => {
+        activo = campo;
+        $("contenido").querySelectorAll("[data-campo-reloj]").forEach((el) =>
+          el.classList.toggle("activo", el.dataset.campoReloj === campo)
+        );
+      };
+      const cambiar = (campo, pasos) => {
+        if (confirmado) return;
+        enfocar(campo);
+        const [minimo, maximo, paso] = LIMITES[campo];
+        valores[campo] = Math.min(maximo, Math.max(minimo, valores[campo] + pasos * paso));
+        $(`reloj-${campo}`).textContent = String(valores[campo]).padStart(2, "0");
+      };
+      const confirmar = () => {
+        if (confirmado) return;
+        confirmado = true;
+        $("contenido").querySelectorAll(".stepper-boton, #btn-responder").forEach((b) => (b.disabled = true));
+        if (teclaConteo) document.removeEventListener("keydown", teclaConteo);
+        teclaConteo = null;
+        enviar({ type: "relojes_answer", ronda: msg.ronda, respuesta: { ...valores } });
+        aviso("RESPUESTA CONFIRMADA");
+      };
+      $("contenido").querySelectorAll("[data-campo]").forEach((boton) => {
+        boton.addEventListener("click", () => cambiar(boton.dataset.campo, Number(boton.dataset.delta)));
       });
-      $("btn-despertador-listo").addEventListener("click", () => {
-        desactivarOpciones("relojes");
-        enviar({ type: "relojes_answer", ronda: msg.ronda, respuesta: { horas, minutos } });
-      });
+      $("btn-responder").addEventListener("click", confirmar);
+      if (teclaConteo) document.removeEventListener("keydown", teclaConteo);
+      teclaConteo = (e) => {
+        if (e.key === "ArrowLeft") { e.preventDefault(); enfocar("horas"); }
+        else if (e.key === "ArrowRight") { e.preventDefault(); enfocar("minutos"); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); cambiar(activo, 1); }
+        else if (e.key === "ArrowDown") { e.preventDefault(); cambiar(activo, -1); }
+        else if (e.key === "Enter") { e.preventDefault(); confirmar(); }
+      };
+      document.addEventListener("keydown", teclaConteo);
+      enfocar("horas");
+      $("btn-responder").focus();
       return;
     }
 
     if (juego === "stroop") {
-      const reto = ultimoShowMini[juego] || {};
-      const tintaHex = COLOR_HEX[reto.tinta] || "#1c1a17";
-      $("contenido").innerHTML = `<div class="panel panel-escena">
-        <p class="kicker">ELIGE EL COLOR DE LA TINTA</p>
-        <div class="stroop-palabra" style="color:${tintaHex}">${escapeHtml((reto.palabra || "").toUpperCase())}</div>
-        <p class="pista">Di el COLOR DE LA TINTA, no lo que dice la palabra.</p>
+      // La palabra ya se borró: no se recupera del _show aunque el cliente lo
+      // haya guardado. El aviso no revela la tinta ni lo que decía la palabra.
+      $("contenido").innerHTML = panelAmplio(
+        `<p class="kicker">ELIGE EL COLOR DE LA TINTA</p>`,
+        mando
+          ? miraPantallaHtml("MIRA LA PANTALLA · ELIGE LA TINTA")
+          : `<div class="mira-pantalla stroop-oculto"><b>¿DE QUÉ COLOR ERA LA TINTA?</b><span>La palabra ya se borró · responde de memoria</span></div>`,
+        `<p class="pista">Elige el color de la tinta que viste, no lo que decía la palabra.</p>
         <div class="stroop-botones">
           ${["rojo", "azul", "verde", "amarillo"].map((color) =>
             `<button type="button" class="boton stroop-opcion" data-color="${color}">${color.toUpperCase()}</button>`
           ).join("")}
         </div>
-        <div class="mini-progreso" id="mini-progreso"></div>
-      </div>`;
+        <div class="mini-progreso" id="mini-progreso"></div>`,
+        "respuesta-stroop"
+      );
       $("contenido").querySelectorAll("[data-color]").forEach((boton) => {
         boton.addEventListener("click", () => {
           desactivarOpciones("stroop");
@@ -1061,21 +1493,25 @@
       $("contenido").innerHTML = `<div class="panel panel-escena">
         <p class="kicker">TOCA LOS NÚMEROS DE MENOR A MAYOR</p>
         ${grillaMenorHtml(msg.numeros, true)}
+        <p class="menor-aviso" id="menor-aviso" aria-live="polite"></p>
         <div class="mini-progreso" id="mini-progreso"></div>
       </div>`;
+      pendientesMenor = [];
       $("contenido").querySelectorAll("[data-indice]").forEach((boton) => {
         boton.addEventListener("click", () => {
-          boton.disabled = true;
-          boton.classList.add("marcado");
+          // Se pinta al confirmar el servidor: un error no deja la casilla verde.
+          if (boton.disabled || pendientesMenor.includes(boton)) return;
+          pendientesMenor.push(boton);
           enviar({ type: "menor_answer", ronda: msg.ronda, respuesta: Number(boton.dataset.indice) });
         });
       });
     } else if (juego === "memoria") {
-      $("contenido").innerHTML = `<div class="panel panel-escena">
-        <p class="kicker">TOCA LAS CASILLAS EN ORDEN (1, 2, 3…)</p>
-        ${grillaMemoriaHtml(msg.grilla, msg.celdas, false, {}, [])}
-        <div class="mini-progreso" id="mini-progreso"></div>
-      </div>`;
+      $("contenido").innerHTML = panelAmplio(
+        '<p class="kicker">TOCA LAS CASILLAS EN ORDEN (1, 2, 3…)</p>',
+        grillaMemoriaHtml(msg.grilla, msg.celdas, false, {}, []),
+        '<div class="mini-progreso" id="mini-progreso"></div>',
+        "respuesta-memoria"
+      );
       $("contenido").querySelectorAll("[data-celda]").forEach((boton) => {
         boton.addEventListener("click", () => {
           enviar({ type: "memoria_answer", ronda: msg.ronda, respuesta: Number(boton.dataset.celda) });
@@ -1083,43 +1519,35 @@
       });
     } else if (juego === "vuelto") {
       const elegidos = {};
-      $("contenido").innerHTML = `<div class="panel panel-escena">
-        <p class="kicker">ARMA EL VUELTO EXACTO</p>
-        <div class="vuelto-escena compacta">
-          <span>${escapeHtml(msg.producto?.nombre || "")} ${escapeHtml(msg.precio_texto || "")}</span>
-          <span>PAGÓ ${escapeHtml(msg.pago_texto || "")}</span>
-        </div>
-        <div class="vuelto-bandera"><span>TU VUELTO</span><b id="vuelto-total">$—</b><div id="vuelto-chips"></div></div>
-        <div class="vuelto-denominaciones">
+      const escena = mando
+        ? miraPantallaHtml("MIRA LA PANTALLA · PRECIO Y PAGO")
+        : (visualMini("vuelto", msg, true) || miraPantallaHtml());
+      $("contenido").innerHTML = panelAmplio(
+        `<p class="kicker">ARMA EL VUELTO EXACTO</p>
+        ${escena}
+        <div class="vuelto-bandera"><span>LLEVAS ENTREGADO</span><b id="vuelto-total">$0</b><div id="vuelto-chips" class="vuelto-chips"></div></div>`,
+        `<div class="vuelto-denominaciones">
           ${(msg.denominaciones || []).map((d) =>
-            `<div class="denom"><button type="button" class="boton contorno chico" data-denom="${d}">$${d.toLocaleString("es-CL")}</button><button type="button" class="denom-quitar" data-quitar="${d}" aria-label="Quitar una">−</button><span class="denom-cuenta" data-cuenta="${d}">0</span></div>`
+            `<div class="denom"><button type="button" class="boton contorno chico" data-denom="${d}">$${d.toLocaleString("es-CL")}</button></div>`
           ).join("")}
-        </div>
-        <button type="button" class="boton rojo" id="vuelto-entregar">ENTREGAR ✓</button>
-        <div class="mini-progreso" id="mini-progreso"></div>
-      </div>`;
+        </div>`,
+        `<button type="button" class="boton rojo" id="vuelto-entregar">ENTREGAR ✓</button>
+        <div class="mini-progreso" id="mini-progreso"></div>`,
+        "respuesta-vuelto"
+      );
       const pintar = () => {
         const chips = Object.entries(elegidos)
           .filter(([, n]) => n > 0)
           .map(([d, n]) => `<span class="vuelto-chip">$${Number(d).toLocaleString("es-CL")} × ${n}</span>`)
           .join("");
         $("vuelto-chips").innerHTML = chips;
-        Object.keys(elegidos).forEach((d) => {
-          const n = $(`[data-cuenta="${d}"]`);
-          if (n) n.textContent = elegidos[d];
-        });
+        const total = Object.entries(elegidos).reduce((suma, [d, n]) => suma + Number(d) * n, 0);
+        $("vuelto-total").textContent = `$${total.toLocaleString("es-CL")}`;
       };
       $("contenido").querySelectorAll("[data-denom]").forEach((boton) => {
         boton.addEventListener("click", () => {
           const d = boton.dataset.denom;
           elegidos[d] = (elegidos[d] || 0) + 1;
-          pintar();
-        });
-      });
-      $("contenido").querySelectorAll("[data-quitar]").forEach((boton) => {
-        boton.addEventListener("click", () => {
-          const d = boton.dataset.quitar;
-          elegidos[d] = Math.max(0, (elegidos[d] || 0) - 1);
           pintar();
         });
       });
@@ -1138,10 +1566,60 @@
   function flashMini(acepta) {
     const panel = $("contenido")?.querySelector(".panel");
     if (!panel) return;
+    // En MENOR A MAYOR y MEMORIA la casilla tocada ya se pone verde: el panel
+    // solo destella cuando hay un error.
+    if (acepta && panel.querySelector(".campo-menor, .grilla-memoria")) return;
     panel.classList.remove("mini-bien", "mini-mal");
     void panel.offsetWidth;
     panel.classList.add(acepta ? "mini-bien" : "mini-mal");
     setTimeout(() => panel.classList.remove("mini-bien", "mini-mal"), 500);
+  }
+
+  function marcarMenor(acepta) {
+    const boton = pendientesMenor.shift();
+    if (!boton || !boton.isConnected) return;
+    const avisoMenor = $("menor-aviso");
+    if (acepta) {
+      boton.disabled = true;
+      boton.classList.add("marcado");
+      if (avisoMenor) avisoMenor.textContent = "";
+      return;
+    }
+    // Error: la casilla tiembla en rojo y sigue disponible; no se reinicia.
+    boton.classList.remove("error");
+    void boton.offsetWidth;
+    boton.classList.add("error");
+    setTimeout(() => boton.classList.remove("error"), 600);
+    if (avisoMenor) {
+      avisoMenor.textContent = "✗ ESE NO ERA · TOCA EL MÁS PEQUEÑO QUE QUEDA";
+      clearTimeout(marcarMenor.limpiar);
+      marcarMenor.limpiar = setTimeout(() => (avisoMenor.textContent = ""), 1800);
+    }
+  }
+
+  // Franja de avance por ronda: solo se proyecta en la pantalla del anfitrión.
+  function mostrarProgresoVivo(msg) {
+    if (!esPantallaFiesta()) return;
+    const caja = $("progreso-vivo");
+    if (!caja) return;
+    const filas = msg.jugadores || [];
+    const nombreJuego = NOMBRES_FIESTA[msg.juego] || (msg.juego || "").toUpperCase();
+    const ronda = msg.ronda ? ` · RONDA ${String(msg.ronda).padStart(2, "0")}` : "";
+    const estadoTexto = { contando: "CONTANDO", listo: "LISTO", esperando: "ESPERANDO" };
+    caja.innerHTML =
+      `<span class="pv-titulo">${escapeHtml(nombreJuego + ronda)}</span>` +
+      filas
+        .map((fila) => {
+          const total = fila.total ? ` / ${fila.total}` : "";
+          const estado = estadoTexto[fila.estado] || "EN JUEGO";
+          return `<span class="pv-fila ${fila.estado === "listo" ? "listo" : ""}">
+            <span class="pv-nombre">${escapeHtml(fila.nombre || "JUGADOR")}</span>
+            <span class="pv-valor">${fila.avance || 0}${total}</span>
+            <span class="pv-estado">${estado}</span>
+          </span>`;
+        })
+        .join("");
+    caja.hidden = filas.length === 0;
   }
 
   function actualizarProgresoMini(msg) {
@@ -1156,7 +1634,7 @@
     }
     if (juego === "triangulos") return trianguloHtml(reto, true);
     if (juego === "relojes") {
-      return `<div class="mini-respuesta">${escapeHtml(reto.digital1 || "")} → ${escapeHtml(reto.digital2 || "")} = <b>${reto.horas || 0} h ${reto.minutos || 0} min</b></div>`;
+      return `<div class="mini-respuesta">${escapeHtml(`${reto.digital1 || ""} ${reto.periodo1 || ""}`)} → ${escapeHtml(`${reto.digital2 || ""} ${reto.periodo2 || ""}`)} = <b>${reto.horas || 0} h ${reto.minutos || 0} min</b></div>`;
     }
     if (juego === "menor") {
       return `<div class="mini-respuesta">ORDEN: ${(reto.orden || []).map((i) => reto.numeros[i]?.valor).join(" → ")}</div>`;
@@ -1202,7 +1680,7 @@
     const filas = (msg.clasificacion || [])
       .map((fila) => `<div class="puntaje ${fila.id === yoId ? "propio" : ""}">
         <div class="numero">${fila.brain_age ?? fila.puntos ?? 0}</div>
-        <div class="quien">${escapeHtml(fila.nombre)}</div>
+        <div class="quien">${nombreHtml(fila.nombre)}</div>
         <div class="desglose">${fila.brain_age != null ? "PUNTAJE BRAIN AGE" : "PUNTOS"}</div>
       </div>`)
       .join("");
@@ -1232,7 +1710,7 @@
       mostrarEstimuloMini(juego, msg);
     } else if (sufijo === "_hide") {
       if (esPantallaFiesta()) {
-        mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…", "Los mandos están recordando las posiciones.");
+        mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…", "Los mandos están respondiendo.");
       } else {
         prepararRespuestaMini(juego, msg);
       }
@@ -1242,6 +1720,8 @@
       if (msg.pid !== yoId) return;
       if (["triangulos", "relojes", "silabas"].includes(juego)) {
         if (typeof window.__konitiveFeedback === "function") window.__konitiveFeedback(msg);
+      } else if (juego === "menor") {
+        marcarMenor(msg.acepta);
       } else {
         flashMini(msg.acepta);
       }
@@ -1250,7 +1730,7 @@
       if (typeof window.__konitiveTermino === "function") window.__konitiveTermino(msg);
       aviso("RESPUESTA COMPLETA");
     } else if (sufijo === "_result") {
-      mostrarResultadoMini(juego, msg);
+      if (!resultadoSoloEnPantalla()) mostrarResultadoMini(juego, msg);
     } else if (sufijo === "_over") {
       mostrarFinalMini(juego, msg);
     }
@@ -1259,7 +1739,7 @@
   function tituloJuego(juego) {
     return (
       {
-        pajaros: "CONTAR PÁJAROS",
+        pajaros: "CONTAR HÁMSTERS",
         escritura: "ESCRIBIR PALABRAS",
         cajas: "CONTAR CAJAS",
         operaciones: "OPERACIONES",
@@ -1270,6 +1750,7 @@
 
   function iniciarRonda(msg) {
     detenerTimers();
+    rondaClasica = msg.nivel || 1;
     actualizarMarcador(msg.marcador);
     $("etiqueta-ronda").textContent = msg.desempate
       ? "DESEMPATE"
@@ -1280,7 +1761,7 @@
       <div class="glifo">${msg.juego === "pajaros" ? "◎" : "✎"}</div>
       <p class="pista">${
         msg.juego === "pajaros"
-          ? "Cuenta los pájaros en cuanto aparezcan."
+          ? "Cuenta los hámsters en cuanto aparezcan."
           : "Primero contaremos hasta tres. Después verás la palabra un instante."
       }</p>
     </div>`;
@@ -1293,20 +1774,29 @@
     conteosPajarosVivos = {};
     confirmadosPajaros = [];
     const esMando = esMandoFiesta() && !msg.aves;
+    // La pantalla de la fiesta solo proyecta a los hámsters: no cuenta ni
+    // muestra el panel de conteos, eso es cosa de los mandos.
+    const esPantalla = esPantallaFiesta();
 
-    $("contenido").innerHTML = `<div class="panel">
-      <p class="kicker">FASE 01 · OBSERVA</p>
-      <h2 class="panel-titulo">¿CUÁNTOS HAY?</h2>
+    $("contenido").innerHTML = `<div class="panel ${esMando ? "" : "panel-amplio"}">
+      <div class="amplio-arriba">
+        <p class="kicker">FASE 01 · OBSERVA</p>
+        <h2 class="panel-titulo">¿CUÁNTOS HAY?</h2>
+      </div>
       ${esMando
-        ? '<div style="text-align:center;margin:2vh 0;color:var(--tinta-suave)">LOS PÁJAROS APAARECEN EN LA PANTALLA DEL ANFITRIÓN</div>'
-        : '<div class="campo-pajaros" id="campo-pajaros"><div class="reloj" id="reloj">' + Math.ceil(msg.duracion) + '</div></div><div class="stepper-respuesta"><div class="stepper"><button id="btn-menos" class="stepper-boton" aria-label="Quitar uno">−</button><output id="cuenta-valor" class="stepper-valor" aria-live="polite">0</output><button id="btn-mas" class="stepper-boton" aria-label="Agregar uno">+</button></div><p class="pista stepper-ayuda">Cuenta los pájaros y responde cuanto antes.</p><button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button></div>'}
-      <div class="barra-tiempo"><div id="barra-tiempo"></div></div>
+        ? '<div style="text-align:center;margin:2vh 0;color:var(--tinta-suave)">LOS HÁMSTERS APARECEN EN LA PANTALLA DEL ANFITRIÓN</div>'
+        : '<div class="amplio-visual"><div class="campo-pajaros" id="campo-pajaros"></div></div>'}
+      <div class="amplio-abajo">
+        ${esMando || esPantalla ? "" : '<div class="stepper-respuesta"><div class="stepper"><button id="btn-menos" class="stepper-boton" aria-label="Quitar uno">−</button><output id="cuenta-valor" class="stepper-valor" aria-live="polite">0</output><button id="btn-mas" class="stepper-boton" aria-label="Agregar uno">+</button></div><p class="pista stepper-ayuda">Cuenta los hámsters y responde cuanto antes.</p><button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button></div>'}
+        ${esPantalla ? '<p class="pista">Los mandos cuentan en su celular.</p>' : ""}
+        <div class="barra-tiempo"><div id="barra-tiempo"></div></div>
+      </div>
     </div>`;
 
     if (esMando) {
       const barra = $("barra-tiempo");
       if (barra) {
-        barra.style.transition = `transform ${msg.duracion}s linear`;
+        barra.style.transition = `transform ${msg.limite || msg.duracion}s linear`;
         barra.style.transform = "scaleX(1)";
         requestAnimationFrame(() => (barra.style.transform = "scaleX(0)"));
       }
@@ -1314,19 +1804,26 @@
     }
 
     const campo = $("campo-pajaros");
+    // Los tamaños vienen pensados para un campo de ~290px: crecen con el campo.
+    const escalaCampo = Math.min(1.45, Math.max(1, (campo.clientWidth || 290) / 340));
     const aves = msg.aves.map((ave) => {
       const elemento = document.createElement("div");
       elemento.className = `pajaro${ave.salta ? " saltarin" : ""}`;
-      elemento.style.width = `${ave.size}px`;
+      elemento.style.width = `${ave.size * escalaCampo}px`;
       elemento.style.left = `${ave.x * 100}%`;
       elemento.style.top = `${ave.y * 100}%`;
+      const pelajes = Math.max(1, Math.min(PELAJES.length, msg.nivel || 1));
+      const [pelo, panza] = PELAJES[(ave.id * 5 + (msg.nivel || 1)) % pelajes];
+      elemento.style.setProperty("--pelo", pelo);
+      elemento.style.setProperty("--panza", panza);
       elemento.innerHTML = AVE_SVG;
       campo.appendChild(elemento);
       return { ...ave, elemento };
     });
 
     const inicio = performance.now();
-    const duracion = msg.duracion * 1000;
+    // La barrita marca todo el tiempo para responder, no solo la observación.
+    const duracion = (msg.limite || msg.duracion) * 1000;
     const alto = campo.clientHeight || 300;
     const limitar = (valor, minimo, maximo) => Math.min(maximo, Math.max(minimo, valor));
 
@@ -1341,7 +1838,7 @@
         const avance = ciclos + (progreso < 1 ? progreso : 1);
         const x = limitar(ave.x + ave.dx * avance, 0.06, 0.94);
         const y = limitar(
-          ave.y + ave.dy * avance - (ave.altura / alto) * elevacion,
+          ave.y + ave.dy * avance - ((ave.altura * escalaCampo) / alto) * elevacion,
           0.10,
           0.90
         );
@@ -1353,14 +1850,12 @@
 
       const transcurrido = Math.min(1, (ahora - inicio) / duracion);
       const barra = $("barra-tiempo");
-      const reloj = $("reloj");
       if (barra) barra.style.transform = `scaleX(${transcurrido})`;
-      if (reloj) reloj.textContent = Math.ceil(transcurrido * msg.duracion);
       animacion = requestAnimationFrame(fotograma);
     }
     animacion = requestAnimationFrame(fotograma);
 
-    configurarStepperPajaros();
+    if (!esPantalla) configurarStepperPajaros();
   }
 
   function configurarStepperPajaros() {
@@ -1371,10 +1866,6 @@
       if (confirmado) return;
       valor = Math.min(200, Math.max(0, valor + delta));
       $("cuenta-valor").textContent = valor;
-      conteosPajarosVivos[yoId] = valor;
-      if ($("conteos-vivos")) {
-        actualizarConteosVivos(conteosPajarosVivos, confirmadosPajaros);
-      }
       enviar({ type: "bird_tally", count: valor, token: conteoToken });
     }
 
@@ -1413,15 +1904,11 @@
       const kicker = document.querySelector("#contenido .kicker");
       if (kicker) kicker.textContent = "FASE 02 · RESPONDE";
       const titulo = document.querySelector("#contenido .panel-titulo");
-      if (titulo) titulo.textContent = "¿CUÁNTOS PÁJAROS HAY?";
-      const reloj = $("reloj");
-      if (reloj) reloj.remove();
-      const barra = document.querySelector("#contenido .barra-tiempo");
-      if (barra) barra.remove();
+      if (titulo) titulo.textContent = "¿CUÁNTOS HÁMSTERS HAY?";
       const ayuda = document.querySelector("#contenido .stepper-ayuda");
       if (ayuda) {
         ayuda.textContent =
-          "Las aves siguen en pantalla. Usa los botones o flechas y confirma cuanto antes.";
+          "Los hámsters siguen en pantalla. Usa los botones o flechas y confirma cuanto antes.";
       }
       conteosPajarosVivos = { ...(msg.conteos || {}) };
       confirmadosPajaros = msg.confirmados || [];
@@ -1443,7 +1930,7 @@
     detenerTimers();
     $("contenido").innerHTML = `<div class="panel">
       <p class="kicker">FASE 02 · RESPONDE</p>
-      <h2 class="panel-titulo">¿CUÁNTOS PÁJAROS HABÍA?</h2>
+      <h2 class="panel-titulo">¿CUÁNTOS HÁMSTERS HABÍA?</h2>
       <div class="stepper">
         <button id="btn-menos" class="stepper-boton" aria-label="Quitar uno">−</button>
         <output id="cuenta-valor" class="stepper-valor" aria-live="polite">0</output>
@@ -1451,18 +1938,14 @@
       </div>
       <p class="pista stepper-ayuda">Usa los botones o las flechas arriba y abajo.</p>
       <button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button>
-      <div class="conteos-vivos" id="conteos-vivos"></div>
       <p class="pista">Tienes ${msg.segundos} segundos. Suma más quien antes acierte.</p>
     </div>`;
 
     let valor = 0;
     let confirmado = false;
-    const conteosLocales = { ...(msg.conteos || {}) };
 
     function pintar() {
       $("cuenta-valor").textContent = valor;
-      conteosLocales[yoId] = valor;
-      actualizarConteosVivos(conteosLocales, msg.confirmados || []);
     }
 
     function cambiar(delta) {
@@ -1502,18 +1985,21 @@
     };
     document.addEventListener("keydown", teclaConteo);
 
-    actualizarConteosVivos(msg.conteos || {}, msg.confirmados || []);
     $("btn-responder").focus();
   }
 
   /* ---------- Palabra: cuenta previa → flash → escritura ---------- */
-  function mostrarCuentaPrevia(msg) {
+  function mostrarCuentaPrevia(
+    msg,
+    { kicker = "FASE 01 · PREPARA LA MEMORIA", pie = "LA PALABRA APARECERÁ DESPUÉS", glifo = "✎" } = {}
+  ) {
+    detenerTimers();
     let restante = Math.max(1, Math.round(msg.segundos));
     $("contenido").innerHTML = `<div class="panel panel-escena">
-      <p class="kicker">FASE 01 · PREPARA LA MEMORIA</p>
+      <p class="kicker">${kicker}</p>
       <div class="cuenta-previa">
         <div class="cuenta-previa-numero" id="cuenta-previa-numero">${restante}</div>
-        <div class="cuenta-previa-pie">LA PALABRA APARECERÁ DESPUÉS</div>
+        <div class="cuenta-previa-pie">${pie}</div>
       </div>
     </div>`;
 
@@ -1522,7 +2008,7 @@
       restante -= 1;
       const el = $("cuenta-previa-numero");
       if (el) {
-        el.textContent = restante > 0 ? restante : "✎";
+        el.textContent = restante > 0 ? restante : glifo;
         el.style.animation = "none";
         void el.offsetWidth;
         el.style.animation = "";
@@ -1560,18 +2046,20 @@
       }
     }
 
-    $("contenido").innerHTML = `<div class="panel panel-escena cuaderno">
-      <p class="kicker">${opciones.kicker}</p>
-      ${opciones.recordatorio ? `<div class="mini-recordatorio">${opciones.recordatorio}</div>` : ""}
-      <div class="letras-escritas" id="letras-escritas"></div>
-      <canvas id="lienzo" width="280" height="280" aria-label="Área de dibujo"></canvas>
-      <div class="acciones">
+    // PC: TRIÁNGULOS lleva la pirámide grande a la izquierda y el lienzo a la derecha.
+    $("contenido").innerHTML = panelAmplio(
+      `<p class="kicker">${opciones.kicker}</p>`,
+      `<div class="letras-escritas" id="letras-escritas"></div>
+      <canvas id="lienzo" width="280" height="280" aria-label="Área de dibujo"></canvas>`,
+      `<div class="acciones">
         <button class="boton contorno chico" id="btn-limpiar">LIMPIAR</button>
         <button class="boton rojo chico" id="btn-listo">LISTO ✓</button>
       </div>
       <div class="feedback-letra" id="feedback-letra"></div>
-      <p class="pista">${opciones.pista}</p>
-    </div>`;
+      ${opciones.pista ? `<p class="pista">${opciones.pista}</p>` : ""}`,
+      `cuaderno escritura${opciones.recordatorio ? " con-ref" : ""}`,
+      opciones.recordatorio ? `<div class="mini-recordatorio">${opciones.recordatorio}</div>` : ""
+    );
 
     function pintarLetras() {
       const letras = Object.keys(letrasAceptadas)
@@ -1583,11 +2071,14 @@
 
     const canvas = $("lienzo");
     const ctx = canvas.getContext("2d");
+    // Resolución igual al tamaño en pantalla (los trazos viajan normalizados 0-1).
+    const lado = Math.round(canvas.getBoundingClientRect().width * (window.devicePixelRatio || 1));
+    if (lado > 0) canvas.width = canvas.height = lado;
 
     function limpiar() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = "#1c1a17";
-      ctx.lineWidth = 22;
+      ctx.lineWidth = 22 * canvas.width / 280;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
     }
@@ -1672,7 +2163,8 @@
           feedback.textContent = "NO SE LEYÓ EL DIBUJO · INTENTA DE NUEVO";
         }
       }, 8000);
-      enviar({ type: opciones.tipoMensaje, index: indice, trazos });
+      // `extra` lleva la ronda en los minijuegos: sin ella el árbitro descarta la cifra.
+      enviar({ type: opciones.tipoMensaje, index: indice, trazos, ...(opciones.extra || {}) });
     });
 
     window.__konitiveFeedback = (msg) => {
@@ -1724,9 +2216,10 @@
   }
 
   /* ---------- Cuenta Cajas ---------- */
-  // Separación entre columnas: cada cubo se encoge un poco alrededor del
-  // centro de su casilla, así las cajas de detrás dejan de quedar tapadas.
-  const SEPARACION_CAJAS = 0.24;
+  // Separación entre columnas (0 = cajas juntas). El servidor ya descarta las
+  // pilas con cajas tapadas midiendo este mismo dibujo (juego/cajas.py): si
+  // cambias la geometría aquí, cambia también fraccion_visible allá.
+  const SEPARACION_CAJAS = 0;
 
   function puntoCubo(x, y, z, geo, celda = null) {
     let px = x;
@@ -1795,9 +2288,22 @@
 
   function dibujarPila(canvas, alturas) {
     if (!canvas || !alturas || !alturas.length) return;
+    // Dibuja al tamaño real en pantalla (nítido en el lienzo grande de PC y en
+    // pantallas retina); si aún no se ve, usa el tamaño del atributo.
+    const caja = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    let area = { width: canvas.width, height: canvas.height };
+    let escalaPantalla = 1;
+    if (caja.width > 0 && caja.height > 0) {
+      canvas.width = Math.round(caja.width * dpr);
+      canvas.height = Math.round(caja.height * dpr);
+      area = { width: caja.width, height: caja.height };
+      escalaPantalla = dpr;
+    }
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const geo = geometriaCajas(alturas, canvas);
+    ctx.setTransform(escalaPantalla, 0, 0, escalaPantalla, 0, 0);
+    ctx.clearRect(0, 0, area.width, area.height);
+    const geo = geometriaCajas(alturas, area);
     const p = (x, y, z, cx, cy) => puntoCubo(x, y, z, geo, [cx, cy]);
 
     // Cuadrícula de la base: rombos en el suelo como referencia de profundidad.
@@ -1873,11 +2379,13 @@
   function mostrarPilaCajas(msg) {
     detenerTimers();
     ultimaPila = msg.alturas;
-    $("contenido").innerHTML = `<div class="panel panel-escena">
-      <p class="kicker">FASE 02 · OBSERVA · ${escapeHtml(msg.dificultad)}</p>
-      <h2 class="panel-titulo">¿CUÁNTAS CAJAS HAY?</h2>
-      <div class="campo-cajas"><canvas id="lienzo-cajas" class="lienzo-cajas" width="560" height="360" aria-label="Pila de cajas"></canvas></div>
-      <div class="barra-tiempo"><div id="barra-tiempo"></div></div>
+    $("contenido").innerHTML = `<div class="panel panel-escena panel-amplio">
+      <div class="amplio-arriba">
+        <p class="kicker">FASE 02 · OBSERVA · ${escapeHtml(msg.dificultad)}</p>
+        <h2 class="panel-titulo">¿CUÁNTAS CAJAS HAY?</h2>
+      </div>
+      <div class="amplio-visual"><div class="campo-cajas"><canvas id="lienzo-cajas" class="lienzo-cajas" width="560" height="360" aria-label="Pila de cajas"></canvas></div></div>
+      <div class="amplio-abajo"><div class="barra-tiempo"><div id="barra-tiempo"></div></div></div>
     </div>`;
     dibujarPila($("lienzo-cajas"), msg.alturas);
     const barra = $("barra-tiempo");
@@ -1959,13 +2467,16 @@
       ? `BASE 100 + RAPIDEZ ${propio.bono ?? 0} · ×${msg.multiplicador}`
       : "NO HUBO ACIERTO · SIGUIENTE RONDA";
 
-    $("contenido").innerHTML = `<div class="panel resultado cajas-resultado">
+    $("contenido").innerHTML = `<div class="panel resultado cajas-resultado panel-amplio">
+      <div class="amplio-arriba">
       <div class="resultado-cabecera" style="width:100%">
         <p class="kicker">INFORME · RONDA ${String(msg.ronda).padStart(2, "0")} / ${msg.necesario} · ${escapeHtml(msg.dificultad || "")}</p>
         <h2>${acierto ? "¡CORRECTO!" : "ESA VEZ NO"}</h2>
       </div>
       ${propio.racha > 0 ? `<div class="cajas-racha">RACHA DE ${propio.racha}</div>` : ""}
-      <div class="campo-cajas"><canvas id="lienzo-cajas" class="lienzo-cajas" width="560" height="360" aria-label="Pila de cajas"></canvas></div>
+      </div>
+      <div class="amplio-visual"><div class="campo-cajas"><canvas id="lienzo-cajas" class="lienzo-cajas" width="560" height="360" aria-label="Pila de cajas"></canvas></div></div>
+      <div class="amplio-abajo">
       <div class="cajas-datos">
         <span>TOTAL: <b>${msg.total}</b> CAJAS</span>
         <span>A LA VISTA: <b>${msg.visibles}</b> · OCULTAS: <b>${msg.total - msg.visibles}</b></span>
@@ -1979,6 +2490,7 @@
         </div>
       </div>
       ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
+      </div>
     </div>`;
     dibujarPila($("lienzo-cajas"), msg.alturas);
   }
@@ -2147,10 +2659,16 @@
       .map(
         (fila, i) =>
           `<div class="fila"><span class="puesto">${i + 1}.</span>` +
-          `<span>${escapeHtml(fila.nombre || "JUGADOR")}${fila.id === resaltarId ? " · TÚ" : ""}</span>` +
+          `<span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === resaltarId ? " · TÚ" : "")}</span>` +
           `<span class="puntos">${fila.puntos ?? 0}</span></div>`
       )
       .join("")}</div>`;
+  }
+
+  function pintarPodiosLobby() {
+    const tabla = tablaClasificacion(podioActual);
+    const html = tabla ? `<p class="kicker">PODIO DE LA FIESTA</p>${tabla}` : "";
+    $("podio-lobby").innerHTML = html;
   }
 
   function mostrarPodio(msg) {
@@ -2185,7 +2703,7 @@
           : "";
         return `<div class="fila-podio ${i === 0 ? "top1" : ""}" data-id="${fila.id}">
           <span class="puesto">${i + 1}</span>
-          <span class="quien">${escapeHtml(fila.nombre || "JUGADOR")}${fila.id === yoId ? " · TÚ" : ""}${ganado}</span>
+          <span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === yoId ? " · TÚ" : "")}${ganado}</span>
           <span class="movimiento ${claseMov}">${movimiento}</span>
           <span class="puntos">${fila.puntos ?? 0}</span>
         </div>`;
@@ -2220,7 +2738,9 @@
 
     $("podio-pie").innerHTML = final
       ? 'FIN DE LA FIESTA · <button class="boton rojo chico" id="btn-fin-podio">VOLVER AL INICIO</button>'
-      : "El anfitrión elige el siguiente juego…";
+      : msg.siguiente
+        ? `SIGUIENTE JUEGO: <b>${escapeHtml(msg.siguiente)}</b> · empieza enseguida…`
+        : "Fin de la lista · volviendo a la sala…";
     const boton = $("btn-fin-podio");
     if (boton) boton.addEventListener("click", () => volverAlInicio());
     mostrar("pantalla-podio");
@@ -2236,11 +2756,7 @@
     modoOperaciones = false;
     juegoFiesta = null;
     marcador = { pajaros: {}, escritura: {}, necesario: 3 };
-    $("podio-lobby").innerHTML = tablaClasificacion(podioActual);
-    $("selector-fiesta")
-      .querySelectorAll("button[data-juego]")
-      .forEach((boton) => (boton.disabled = false));
-    $("btn-fin-fiesta").disabled = false;
+    pintarPodiosLobby();
     actualizarLobby();
     if (esPantalla) {
       $("mando-estado").textContent = "El anfitrión elige el siguiente juego…";
@@ -2265,7 +2781,7 @@
         return `<div class="puntaje ${gana ? "ganador" : ""}">
           <div class="numero">${puntos[id] ?? 0}</div>
           ${detalle}
-          <div class="quien">${escapeHtml(jugadores[id] || "JUGADOR")}${id === yoId ? " · TÚ" : ""}</div>
+          <div class="quien">${nombreHtml(jugadores[id] || "JUGADOR", id === yoId ? " · TÚ" : "")}</div>
         </div>`;
       })
       .join("");
@@ -2287,7 +2803,7 @@
         ? `<div class="conteo-final">
             <span class="conteo-final-etiqueta">HABÍA</span>
             <div class="conteo-final-numero" id="conteo-final-numero">${msg.esperado ?? "?"}</div>
-            <span class="conteo-final-unidad">PÁJAROS</span>
+            <span class="conteo-final-unidad">HÁMSTERS</span>
           </div>`
         : `<div class="palabra-final">
             <span class="conteo-final-etiqueta">LA PALABRA ERA</span>
@@ -2302,7 +2818,7 @@
       </div>
       ${protagonista}
       <div class="puntajes">${cajasPuntajes(msg.puntos || {}, ganador, msg.desglose || {}, msg.juego)}</div>
-      <p class="resultado-pie">PÁJAROS ${msg.marcador.pajaros[yoId] || 0} · PALABRAS ${msg.marcador.escritura[yoId] || 0}</p>
+      <p class="resultado-pie">HÁMSTERS ${msg.marcador.pajaros[yoId] || 0} · PALABRAS ${msg.marcador.escritura[yoId] || 0}</p>
     </div>`;
   }
 
@@ -2311,7 +2827,7 @@
     if (msg.marcador) actualizarMarcador(msg.marcador);
     const resumen = msg.resumen || {};
     const tarjetas = [
-      ["pajaros", "PÁJAROS"],
+      ["pajaros", "HÁMSTERS"],
       ["escritura", "PALABRAS"],
     ]
       .map(([clave, titulo]) => {
@@ -2329,7 +2845,7 @@
         <p class="kicker">INFORME DE PRÁCTICA · LABORATORIO DE ATENCIÓN</p>
         <h2>RESUMEN DEL ENTRENAMIENTO</h2>
       </div>
-      <p class="pista">${escapeHtml(msg.nombre || "Practicante")}, completaste ${msg.necesario ?? 3} victorias en cada prueba. No hay ganador: esto es entrenamiento.</p>
+      <p class="pista">${escapeHtml(msg.nombre || "Paciente")}, completaste ${msg.necesario ?? 3} victorias en cada prueba. No hay ganador: esto es entrenamiento.</p>
       <div class="puntajes">${tarjetas}</div>
       <div class="diploma-acciones">
         <button class="boton rojo chico" id="btn-seguir">SEGUIR PRACTICANDO</button>
@@ -2350,7 +2866,7 @@
     detenerTimers();
     secuenciaIndividual = false;
     const nombres = {
-      pajaros: "PÁJAROS",
+      pajaros: "HÁMSTERS",
       escritura: "PALABRAS",
       cajas: "CAJAS",
       operaciones: "OPERACIONES",
@@ -2408,7 +2924,7 @@
       .map(
         (id) => `<div class="puntaje ${id === msg.ganador ? "ganador" : ""}">
           <div class="numero">${msg.marcador.pajaros[id] || 0} / ${msg.marcador.escritura[id] || 0}</div>
-          <div class="quien">${escapeHtml(jugadores[id] || "JUGADOR")}</div>
+          <div class="quien">${nombreHtml(jugadores[id] || "JUGADOR")}</div>
         </div>`
       )
       .join("");
@@ -2445,6 +2961,9 @@
     $("nombre-invitado").value = "";
     $("error-invitado").textContent = "";
     mostrar("pantalla-invitado");
-    $("nombre-invitado").focus();
+    // En el celular no abrimos el teclado al entrar: descuadra la ficha.
+    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      $("nombre-invitado").focus();
+    }
   }
 })();

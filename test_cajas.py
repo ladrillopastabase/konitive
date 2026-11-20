@@ -17,6 +17,7 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
 from juego.cajas import DIFICULTADES, contar_visibles, generar_pila, suma_total
 
 
@@ -24,7 +25,7 @@ async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
-servidor.pausa = pausa_corta
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8766, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -213,12 +214,24 @@ async def jugar_fiesta_dos_mandos():
 
     assert host.de_tipo("cajas_over"), "No terminó la fiesta de cajas"
     resultados = host.de_tipo("cajas_result")
-    assert len(resultados) == 10
+    assert len(resultados) == nucleo.RONDAS_FIESTA
     for msg in resultados:
         assert set(msg["jugadores"]) == set(ids), msg
         assert msg["jugadores"][ids[0]]["acierto"] is True
         assert msg["jugadores"][ids[1]]["acierto"] is False
         assert set(msg["marcador"]["cajas"]) == set(ids)
+    # El informe de cada ronda se ve solo en la pantalla: los mandos no
+    # reciben la pila revelada ni el detalle de aciertos.
+    for mando in mandos:
+        informes = mando.de_tipo("cajas_result")
+        assert len(informes) == nucleo.RONDAS_FIESTA
+        assert all(
+            not any(
+                c in informe
+                for c in ("alturas", "total", "visibles", "jugadores", "clasificacion")
+            )
+            for informe in informes
+        ), informes
 
     sobre = host.de_tipo("cajas_over")[0]
     filas = {fila["id"]: fila for fila in sobre["clasificacion"]}

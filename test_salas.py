@@ -18,13 +18,14 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
 
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
-servidor.pausa = pausa_corta
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8768, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -86,7 +87,7 @@ async def cerrar_todos(*clientes):
 def probar_http():
     with urllib.request.urlopen(f"{BASE}/api/red") as respuesta:
         datos = json.loads(respuesta.read())
-    assert datos["ip"] and datos["puerto"] == 8000, datos
+    assert datos["ip"] and datos["puerto"] == 6767, datos
 
     url = f"{BASE}/api/qr?texto={urllib.parse.quote(BASE + '/?sala=ABC12')}"
     with urllib.request.urlopen(url) as respuesta:
@@ -181,7 +182,7 @@ async def probar_cajas_y_podio():
         await asyncio.sleep(0.01)
 
     assert host.de_tipo("cajas_over"), "No terminó la tanda de cajas en fiesta"
-    assert vistos_show == 10 and vistos_hide == 10
+    assert vistos_show == vistos_hide == nucleo.RONDAS_FIESTA
 
     podio = await host.esperar("podium_update")
     assert podio["nombre_juego"] == "CAJAS"
@@ -192,7 +193,8 @@ async def probar_cajas_y_podio():
         m.recibidos[0]["id"] for m in mandos
     }, podio["puntos_juego"]
     for mando in mandos:
-        await mando.esperar("podium_update")
+        # El podio es cosa de la pantalla: el celular nunca ve puntos ajenos.
+        assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")
         await mando.esperar("back_to_selector")
     selector = await host.esperar("back_to_selector")
     assert selector["host"] == bienvenida["id"]
@@ -200,9 +202,12 @@ async def probar_cajas_y_podio():
     await host.enviar({"type": "finish_fiesta"})
     final = await host.esperar("podium_final")
     assert len(final["despues"]) == 2
+    for mando in mandos:
+        assert not mando.de_tipo("podium_final"), mando.de_tipo("podium_final")
+        await mando.esperar("fin_fiesta")
 
     await cerrar_todos(host, *mandos)
-    print("Fiesta: cajas sin alturas en mandos, podio y cierre correctos")
+    print("Fiesta: cajas sin alturas en mandos, podio solo en pantalla y cierre correctos")
 
 
 async def probar_pajaros_filtrado():
@@ -216,9 +221,30 @@ async def probar_pajaros_filtrado():
     show_mando = await mando.esperar("birds_show")
     assert show_host["aves"], show_host
     assert "aves" not in show_mando, show_mando
+    assert host.de_tipo("progreso_vivo"), "La pantalla no recibió el avance en vivo"
+    assert not mando.de_tipo("progreso_vivo"), "El mando no debe ver avances ajenos"
+
+    # El mando acierta mirando la pantalla y termina la ronda. El informe
+    # (palabra y recuento correcto) solo debe verse en la pantalla.
+    await mando.enviar(
+        {
+            "type": "bird_answer",
+            "count": len(show_host["aves"]),
+            "token": show_mando["token"],
+        }
+    )
+    informe_host = await host.esperar("round_result")
+    assert "esperado" in informe_host, informe_host
+    informe_mando = await mando.esperar("round_result")
+    assert "esperado" not in informe_mando, informe_mando
+    assert "palabra" not in informe_mando, informe_mando
+    for mensaje in mando.recibidos:
+        assert "marcador" not in mensaje, mensaje
+        assert "conteos" not in mensaje, mensaje
+        assert "confirmados" not in mensaje, mensaje
 
     await cerrar_todos(host, mando)
-    print("Fiesta: las aves solo llegan a la pantalla correcto")
+    print("Fiesta: las aves y el informe solo llegan a la pantalla correcto")
 
 
 async def main():

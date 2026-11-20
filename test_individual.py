@@ -18,6 +18,7 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
 
 
 class ReconocedorLetrasFalso:
@@ -34,15 +35,15 @@ class ReconocedorDigitosFalso:
         return str(indice), 0.99, [0.0] * 10
 
 
-servidor.reconocedor = ReconocedorLetrasFalso()
-servidor.reconocedor_digitos = ReconocedorDigitosFalso()
+nucleo.reconocedor = ReconocedorLetrasFalso()
+nucleo.reconocedor_digitos = ReconocedorDigitosFalso()
 
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
-servidor.pausa = pausa_corta
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8769, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -178,7 +179,7 @@ async def secuencia_completa() -> None:
     assert [m["juego"] for m in inicios] == TODOS, inicios
     assert [m["indice"] for m in inicios] == [1, 2, 3, 4], inicios
     assert all(m["total"] == 4 for m in inicios), inicios
-    for mensaje, nombre in zip(inicios, ("PÁJAROS", "PALABRAS", "CAJAS", "OPERACIONES")):
+    for mensaje, nombre in zip(inicios, ("HÁMSTERS", "PALABRAS", "CAJAS", "OPERACIONES")):
         assert mensaje["nombre_juego"] == nombre, mensaje
 
     # Durante la secuencia no se envía ningún cierre de juego individual.

@@ -18,6 +18,11 @@
   --v-2: clamp(12px, 2vh, 20px);
   --v-3: clamp(18px, 3vh, 30px);
   --v-4: clamp(26px, 5vh, 48px);
+  /* En celular el alto visible cambia con la barra del navegador. */
+  --v-1: clamp(6px, 1dvh, 10px);
+  --v-2: clamp(12px, 2dvh, 20px);
+  --v-3: clamp(18px, 3dvh, 30px);
+  --v-4: clamp(26px, 5dvh, 48px);
 }
 
 * { box-sizing: border-box; }
@@ -25,9 +30,15 @@
 html, body { margin: 0; padding: 0; height: 100%; }
 
 /* La página nunca se desplaza: la barra y el escenario se reparten la altura. */
-html { overflow: hidden; }
+html {
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
 
 body {
+  height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -46,6 +57,12 @@ body {
 }
 
 button, input { font: inherit; }
+button, a, [role="button"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 /* ---------- Barra superior ---------- */
 .barra {
@@ -56,7 +73,7 @@ button, input { font: inherit; }
   align-items: center;
   gap: 10px;
   min-height: 38px;
-  padding: 6px 16px;
+  padding: calc(6px + env(safe-area-inset-top, 0px)) 16px 6px;
   background: var(--tinta);
   color: var(--papel-claro);
   border-bottom: 3px solid var(--rojo);
@@ -91,13 +108,16 @@ button, input { font: inherit; }
   letter-spacing: .12em;
 }
 .barra-salir:hover { background: var(--rojo); border-color: var(--rojo); }
+.barra-sonido + .barra-salir { margin-left: 8px; }
+.barra-sonido[aria-pressed="false"] { opacity: .6; }
 
 /* ---------- Estructura ---------- */
 #app {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  padding: var(--v-2) clamp(14px, 3vw, 32px);
+  padding: calc(var(--v-2) + env(safe-area-inset-top, 0px)) clamp(14px, 3vw, 32px)
+           calc(var(--v-2) + env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: center;
 }
@@ -264,6 +284,7 @@ input::placeholder { color: #a39b8c; }
   margin: 0;
   padding: clamp(14px, 2.6vh, 24px);
   position: relative;
+  container-type: inline-size;
 }
 .ticket::before, .ticket::after {
   content: "";
@@ -287,11 +308,13 @@ input::placeholder { color: #a39b8c; }
 }
 .ticket-codigo {
   font-family: var(--display);
-  font-size: clamp(38px, min(12vw, 9vh), 72px);
+  /* Proporcional al ancho del ticket (cqi), no de la ventana: así cabe
+     en la columna estrecha del lobby de fiesta sin partirse. */
+  font-size: clamp(28px, min(17cqi, 9vh), 72px);
   letter-spacing: .12em;
   line-height: 1.1;
   margin: var(--v-1) 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 .jugadores { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 0; }
 .ficha-jugador {
@@ -348,7 +371,11 @@ input::placeholder { color: #a39b8c; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* safe: si el juego no cabe (celular bajo), se desplaza dentro en vez de
+     subirse encima del marcador. */
+  justify-content: safe center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 #contenido > .panel { width: 100%; }
 .panel {
@@ -448,6 +475,7 @@ input::placeholder { color: #a39b8c; }
 .stepper-ayuda { margin: var(--v-1) 0 0; }
 #btn-responder { max-width: 330px; margin: 0 auto; }
 
+.conteos-vivos[hidden] { display: none; }
 .conteos-vivos {
   display: flex;
   gap: 8px;
@@ -487,6 +515,50 @@ input::placeholder { color: #a39b8c; }
   color: var(--tinta-suave);
 }
 .conteo-vivo.listo .estado { color: var(--verde); }
+
+/* Avance por ronda proyectado en la pantalla del anfitrión. */
+.progreso-vivo[hidden] { display: none; }
+.progreso-vivo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 14px;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 6px 10px 8px;
+  border: 2px solid var(--tinta);
+  background: var(--papel-claro);
+  box-shadow: 4px 4px 0 var(--tinta);
+}
+.progreso-vivo .pv-titulo {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--rojo);
+  width: 100%;
+  text-align: center;
+}
+.progreso-vivo .pv-fila {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .05em;
+}
+.progreso-vivo .pv-nombre {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.progreso-vivo .pv-valor { font-family: var(--display); font-size: 15px; line-height: 1; }
+.progreso-vivo .pv-estado { font-size: 9px; color: var(--tinta-suave); }
+.progreso-vivo .pv-fila.listo .pv-estado { color: var(--verde); }
 
 /* ---------- Palabra: cuenta previa → flash → escritura ---------- */
 .flash {
@@ -735,21 +807,23 @@ input::placeholder { color: #a39b8c; }
 /* ---------- QR, fiesta, mando y podio ---------- */
 .lobby-qr {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--v-1);
+  justify-content: center;
+  gap: var(--v-2);
   margin: 0;
+  text-align: left;
 }
 .lobby-qr img {
-  width: clamp(120px, 22dvh, 168px);
-  height: clamp(120px, 22dvh, 168px);
+  flex: none;
+  width: clamp(104px, 18dvh, 150px);
+  height: clamp(104px, 18dvh, 150px);
   background: #fff;
   border: var(--borde);
   box-shadow: 4px 4px 0 var(--rojo);
   image-rendering: pixelated;
 }
-.lobby-qr .pista { max-width: 42ch; }
-.lobby-qr .boton { margin-top: 2px; }
+.lobby-qr-texto { display: flex; flex-direction: column; align-items: flex-start; gap: var(--v-1); min-width: 0; }
+.lobby-qr .pista { max-width: 34ch; margin: 0; }
 
 .ficha-jugador .rol {
   margin-left: auto;
@@ -781,32 +855,118 @@ input::placeholder { color: #a39b8c; }
 }
 .ficha-pantalla .rol { color: var(--rojo); }
 
-.selector-fiesta {
+/* ---------- Lobby en dos columnas ---------- */
+/* La página no hace scroll: el lobby ocupa el alto disponible y, si no cabe,
+   desplaza su propio contenido en vez de recortar los botones. */
+#pantalla-lobby.activa { justify-content: flex-start; }
+#pantalla-lobby > .lobby-grid {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
-  padding-top: var(--v-2);
-  border-top: 3px double var(--tinta);
-}
-.selector-juegos {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(12px, 2vh, 20px);
-  margin: var(--v-2) 0 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--v-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-.selector-juegos .boton { box-shadow: 3px 3px 0 var(--tinta); }
-.selector-fiesta .boton.chico { box-shadow: 3px 3px 0 var(--rojo); }
+#pantalla-lobby > .lobby-grid.con-control { max-width: 1060px; }
+.lobby-col { display: flex; flex-direction: column; gap: var(--v-2); min-width: 0; text-align: center; }
+.lobby-col[hidden] { display: none; }
+.lobby-col .boton.rojo { width: 100%; max-width: 380px; margin: 0 auto; }
+
+.selector-fiesta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-2);
+  border-top: 3px double var(--tinta);
+  padding-top: var(--v-2);
+}
+.selector-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; text-align: left; }
+.selector-cabecera .kicker { margin: 0; }
+.selector-acciones { display: flex; gap: 8px; }
+.lista-fiesta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 8px;
+}
+.fila-juego { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: stretch; }
+.fila-juego-nombre {
+  border: var(--borde);
+  background: var(--papel-claro);
+  color: var(--tinta);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-align: left;
+  padding: 8px 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.fila-juego.activa .fila-juego-nombre { background: var(--rojo); color: #fff; }
+.fila-juego-rondas { display: flex; border: var(--borde); background: #fff; }
+.fila-juego-rondas button {
+  width: 32px;
+  border: 0;
+  background: var(--papel-oscuro);
+  color: var(--tinta);
+  font-family: var(--display);
+  font-size: 18px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.fila-juego-rondas output { min-width: 2.4ch; display: grid; place-items: center; font-family: var(--display); font-size: 18px; padding: 0 4px; }
+.fila-juego select {
+  border: var(--borde);
+  background: #fff;
+  color: var(--tinta);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 6px;
+}
+.fila-juego:not(.activa) .fila-juego-rondas,
+.fila-juego:not(.activa) select { opacity: .35; }
+.selector-pie {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: var(--v-1) 0;
+  background: var(--papel);
+}
+.selector-pie .boton.rojo { width: auto; flex: 1 1 240px; margin: 0; }
+
+@media (min-width: 900px) {
+  /* PC: acceso a la izquierda; juegos y podio a la derecha, cada uno con su scroll. */
+  #pantalla-lobby > .lobby-grid.con-control {
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    overflow: hidden;
+    height: 100%;
+  }
+  .lobby-grid.con-control .lobby-col { overflow-y: auto; min-height: 0; padding-right: 4px; }
+  .lobby-grid.con-control .lobby-acceso .lobby-qr { flex-direction: column; text-align: center; }
+  .lobby-grid.con-control .lobby-qr-texto { align-items: center; }
+}
 
 .selector-individual {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: clamp(18px, 3.5vh, 36px);
+  /* 11 juegos: 4 columnas = 3 filas, sin necesidad de scroll */
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(10px, 2vh, 18px);
   margin: var(--v-3) auto 0;
-  max-width: 620px;
+  max-width: 760px;
   width: 100%;
 }
 /* Solo la grilla de juegos scrollea: EMPEZAR queda siempre visible */
 #pantalla-individual .lobby {
+  max-width: 760px;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -954,10 +1114,18 @@ input::placeholder { color: #a39b8c; }
 .stroop-opcion[data-color="verde"] { border-color: #246b58; color: #246b58; }
 .stroop-opcion[data-color="amarillo"] { border-color: #a87300; color: #a87300; }
 
-/* Triángulos */
-.triangulo { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.tri-fila { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3vw, 22px); }
-.tri-fila span {
+/* Triángulos: rejilla 5 columnas + rótulo; las flechas unen cada par con su casilla. */
+.triangulo {
+  display: grid;
+  grid-template-columns: repeat(5, auto) minmax(0, auto);
+  justify-content: center;
+  justify-items: center;
+  align-items: center;
+  column-gap: clamp(4px, 1.6vw, 12px);
+  row-gap: 2px;
+  margin: 0 auto;
+}
+.tri-num {
   display: grid;
   place-items: center;
   min-width: clamp(42px, 9vw, 64px);
@@ -967,18 +1135,27 @@ input::placeholder { color: #a39b8c; }
   font-family: var(--display);
   font-size: clamp(18px, 3.4vh, 26px);
 }
-.tri-fila b { font-family: var(--mono); font-size: 18px; color: var(--rojo); }
-.tri-medio span { background: var(--papel-oscuro); }
-.tri-final span { background: var(--tinta); color: var(--papel-claro); }
+.tri-op { font-family: var(--mono); font-size: 20px; color: var(--rojo); }
+.tri-flecha { font-style: normal; font-size: 22px; line-height: 1; color: var(--rojo); white-space: nowrap; }
+.tri-nota { justify-self: start; padding-left: 6px; font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); white-space: nowrap; }
+.tri-medio { background: var(--papel-oscuro); }
+.tri-final { background: var(--tinta); color: var(--papel-claro); }
+@media (max-width: 400px) {
+  /* En celulares estrechos las flechas bastan; el rótulo no cabe. */
+  .triangulo { grid-template-columns: repeat(5, auto); }
+  .tri-nota { display: none; }
+}
 
 /* Relojes */
 .relojes { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3vw, 22px); }
 .relojes > div { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .relojes > div > span {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .1em;
-  color: var(--tinta-suave);
+  font-size: clamp(14px, 2.4vh, 18px);
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--tinta);
+  text-align: center;
 }
 .reloj-svg { width: clamp(84px, min(22vw, 18vh), 132px); height: auto; }
 .relojes.compacto .reloj-svg { width: clamp(56px, 12vw, 84px); }
@@ -1003,68 +1180,81 @@ input::placeholder { color: #a39b8c; }
   color: var(--tinta-suave);
   line-height: 1;
 }
-.despertador-respuesta {
+/* Relojes: dos botoneras (horas y minutos) lado a lado */
+.steppers-reloj {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(8px, 2vh, 14px);
-  margin-top: var(--v-2);
+  justify-content: center;
+  gap: clamp(10px, 3vw, 24px);
+  width: min(100%, 560px);
+  margin: var(--v-2) auto 0;
 }
-.despertador-display {
+.stepper-campo {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
   font-family: var(--mono);
-  font-size: clamp(34px, 9vw, 56px);
+  font-size: clamp(12px, 1.8vh, 14px);
   font-weight: 700;
-  color: var(--rojo);
-  background: var(--papel-claro);
-  border: 2px solid var(--tinta);
-  padding: clamp(6px, 1.4vh, 10px) clamp(10px, 2.5vw, 18px);
-  border-radius: 8px;
-  box-shadow: 4px 4px 0 var(--papel-oscuro);
+  letter-spacing: .1em;
 }
-.despertador-botones {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(6px, 1.2vh, 10px);
-  width: min(260px, 80vw);
-}
-.despierta-ajuste {
-  min-height: 44px;
-  padding: 6px 4px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--papel-claro);
-  border: 1px solid var(--tinta);
-  color: var(--tinta);
-  border-radius: 6px;
-  cursor: pointer;
-}
-.despierta-ajuste:hover { background: var(--papel-oscuro); }
-.despierta-ajuste:active { transform: translate(2px, 2px); box-shadow: none; }
+.stepper-campo .stepper { width: 100%; margin-top: 4px; }
+.stepper-campo .stepper-boton { width: clamp(42px, 11vw, 64px); min-height: clamp(52px, 12vw, 70px); }
+.stepper-campo .stepper-valor { min-height: clamp(52px, 12vw, 70px); min-width: 0; }
+.stepper-campo.activo { color: var(--rojo); }
+.stepper-campo.activo .stepper-valor { outline: 3px solid var(--rojo); outline-offset: -3px; }
 
 /* Menor a mayor */
+/* Campo apaisado que crece con la pantalla (en PC usa el alto libre); en
+   celular es cuadrado para que las casillas no queden angostas. */
+/* El área de juego es contenedor: el campo se mide contra su alto real. */
+#pantalla-juego #contenido:has(.campo-menor) { width: 100%; container-type: size; }
+#contenido > .panel:has(.campo-menor) { width: 100%; }
 .campo-menor {
   position: relative;
-  width: min(100%, 520px);
-  height: clamp(180px, 38dvh, 340px);
+  --aspecto: 1.45;
+  width: min(100%, 1000px, calc((100cqh - 130px) * var(--aspecto)));
+  aspect-ratio: var(--aspecto);
+  margin: 0 auto;
+  container-type: inline-size;
   border: var(--borde);
   background-color: var(--papel-claro);
   background-image: radial-gradient(var(--papel-oscuro) 1px, transparent 1px);
   background-size: 22px 22px;
   overflow: hidden;
 }
+/* Tamaño relativo al campo: el generador separa los números al menos un 20 %
+   en cada eje (juego/minijuegos.py), así con 18 % nunca se tocan. */
 .numero-menor {
   position: absolute;
   transform: translate(-50%, -50%);
-  min-width: 38px;
-  min-height: 34px;
-  border: 2px solid var(--tinta);
+  width: 18%;
+  height: 18%;
+  padding: 0;
+  border: 3px solid var(--tinta);
   background: #fff;
   font-family: var(--display);
-  font-size: clamp(14px, 2.4vh, 18px);
+  font-size: clamp(18px, 5cqi, 40px);
+  font-weight: 800;
+  line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
+}
+@media (min-width: 900px) {
+  .campo-menor { --aspecto: 1.8; }
+}
+@media (max-width: 600px) {
+  .campo-menor { --aspecto: 1; }
+  .numero-menor { font-size: clamp(18px, 6.8cqi, 28px); }
 }
 .numero-menor:disabled { cursor: default; }
 .numero-menor.marcado { background: var(--verde); color: #fff; }
+.numero-menor.error { background: var(--rojo); color: #fff; animation: temblor .35s ease-in-out; }
+@keyframes temblor {
+  0%, 100% { transform: translate(-50%, -50%); }
+  25% { transform: translate(calc(-50% - 6px), -50%); }
+  75% { transform: translate(calc(-50% + 6px), -50%); }
+}
+.menor-aviso { min-height: 1.3em; margin: 4px 0 0; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--rojo); }
 
 /* Memoria */
 .grilla-memoria {
@@ -1091,8 +1281,7 @@ input::placeholder { color: #a39b8c; }
 
 /* Dar vuelto */
 .vuelto-escena { text-align: center; }
-.vuelto-icono { font-size: clamp(40px, 9vh, 72px); line-height: 1; }
-.vuelto-nombre { font-family: var(--display); font-size: clamp(24px, 4vh, 36px); letter-spacing: .02em; font-weight: 700; margin-top: var(--v-1); }
+.vuelto-nombre { font-family: var(--display); font-size: clamp(24px, 4vh, 36px); letter-spacing: .02em; font-weight: 700; }
 .vuelto-precio { font-family: var(--display); font-size: clamp(44px, 10vh, 72px); color: var(--rojo); font-weight: 800; margin: var(--v-1) 0; text-shadow: 2px 2px 0 var(--papel-oscuro); }
 .vuelto-pago { font-family: var(--mono); font-size: clamp(28px, 5vh, 36px); letter-spacing: .1em; font-weight: 800; color: #fff; background: var(--rojo); border: 3px solid var(--tinta); border-radius: 12px; padding: clamp(10px, 2vh, 16px) clamp(16px, 3vw, 24px); display: inline-block; margin: var(--v-2) 0; box-shadow: 4px 4px 0 var(--papel-oscuro); }
 .vuelto-pago b { color: #ffd93d; }
@@ -1102,7 +1291,8 @@ input::placeholder { color: #a39b8c; }
   justify-content: center;
   gap: 14px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: clamp(16px, 2.6vh, 22px);
+  font-weight: 700;
 }
 .vuelto-bandera {
   width: min(100%, 420px);
@@ -1111,21 +1301,19 @@ input::placeholder { color: #a39b8c; }
   padding: var(--v-1);
   text-align: center;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: clamp(13px, 2vh, 16px);
 }
-.vuelto-bandera b { display: block; font-family: var(--display); font-size: clamp(20px, 4vh, 30px); }
-.vuelto-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: 18px; }
-.vuelto-chip { background: var(--tinta); color: var(--papel-claro); padding: 2px 6px; font-size: 10px; }
+.vuelto-bandera b { display: block; font-family: var(--display); font-size: clamp(32px, 6vh, 48px); color: var(--rojo); }
+.vuelto-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
+.vuelto-chip { background: var(--tinta); color: var(--papel-claro); padding: 3px 8px; font-size: clamp(12px, 1.8vh, 14px); }
 .vuelto-denominaciones {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  width: min(100%, 420px);
+  gap: 8px;
+  width: min(100%, 460px);
 }
-.denom { display: grid; grid-template-columns: 1fr 28px 22px; align-items: center; gap: 4px; }
-.denom .boton { padding: clamp(6px, 1.4vh, 10px) clamp(4px, 1vw, 8px); font-size: clamp(11px, 2vw, 14px); min-height: clamp(32px, 8vh, 44px); }
-.denom-quitar { border: 1px solid var(--tinta); background: var(--papel-oscuro); cursor: pointer; padding: clamp(2px, 0.6vh, 4px) clamp(4px, 1vw, 6px); min-height: clamp(32px, 8vh, 44px); }
-.denom-cuenta { font-family: var(--display); font-size: clamp(14px, 3vw, 18px); text-align: center; }
+.denom { display: grid; }
+.denom .boton { padding: clamp(8px, 1.6vh, 12px) clamp(6px, 1.4vw, 10px); font-size: clamp(16px, 2.6vh, 20px); font-weight: 800; min-height: clamp(48px, 9vh, 60px); }
 
 /* Sílabas y elementos comunes */
 .frase-silabas {
@@ -1165,10 +1353,11 @@ input::placeholder { color: #a39b8c; }
   .marcador { font-size: 12px; }
   .fila-unirse { flex-direction: column; }
   .fila-unirse .boton { width: 100%; }
-  .selector-individual, .selector-juegos { grid-template-columns: repeat(2, 1fr); }
-  .selector-individual { gap: 16px; }
-  .selector-juegos { gap: 10px; }
-  .selector-juegos .boton { padding: 8px 4px; font-size: 10px; }
+  .selector-individual { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  /* iOS hace zoom al enfocar un select de menos de 16px */
+  .fila-juego select { font-size: 16px; }
+  .lobby-qr { flex-direction: column; text-align: center; }
+  .lobby-qr-texto { align-items: center; }
   .boton-juego { min-height: 46px; padding: 12px 6px; font-size: 10px; letter-spacing: .04em; }
   .fila-podio { padding: 8px 10px; gap: 8px; }
   .fila-podio .puntos { font-size: 18px; }
@@ -1188,7 +1377,7 @@ input::placeholder { color: #a39b8c; }
   .retrato { width: 48px; height: 48px; }
   .descripcion { font-size: 13px; }
   .lobby-qr img { width: 104px; height: 104px; }
-  .selector-individual { gap: 14px; margin-top: var(--v-2); }
+  .selector-individual { gap: 8px; margin-top: var(--v-2); }
   .boton-juego { min-height: 44px; padding: 10px 12px; }
   .campo-pajaros { height: clamp(120px, 30dvh, 200px); }
 }
@@ -1196,4 +1385,277 @@ input::placeholder { color: #a39b8c; }
 @media (prefers-reduced-motion: reduce) {
   .pantalla.activa, .flash-palabra, .cuenta-previa-numero { animation: none; }
   .fila-podio { will-change: auto; }
+}
+
+/* ---------- Celular: piso de legibilidad ----------
+   Las etiquetas en mayúsculas espaciadas no bajan de 12px y el texto
+   que se lee (pistas, botones, marcadores) no baja de 14px. */
+@media (max-width: 600px) {
+  .kicker, .ticket-label, .ticket-pie, .etiqueta, .separador span,
+  .ficha-cabecera span, .cuenta-previa-pie, .ronda-num, .conteo-final-etiqueta,
+  .num, .rol, .estado, .quien, .desglose, .movimiento, .sello-resultado,
+  .barra-nombre, .barra-salir, .ficha-jugador .num, .ficha-jugador .rol,
+  .conteo-vivo .quien, .conteo-vivo .estado, .puntaje .quien, .puntaje .desglose,
+  .fila-podio .movimiento {
+    font-size: 12px;
+    letter-spacing: .1em;
+  }
+  .pista, .nota, .subtitulo, .detalle, .detalle b, .resultado-pie,
+  .ficha-jugador, .ficha-pantalla, .nombre, .aviso,
+  .boton.chico, .selector-individual .boton-juego, .marcador .detalle,
+  .mini-respuesta .pista, .mando-lista .ficha-jugador {
+    font-size: 14px;
+  }
+  .boton, .ronda-titulo, .fila-juego-nombre { font-size: 15px; }
+  .barra-salir { min-height: 40px; padding: 0 12px; }
+  /* Selector individual: 4 filas que caben sin recortar con letra de 14px. */
+  #pantalla-individual .selector-individual { gap: 6px; margin-top: var(--v-1); }
+  .selector-individual .boton-juego { min-height: 44px; padding: 6px 4px; letter-spacing: .02em; }
+  /* El sello GANADOR va sobre el título en vez de taparlo. */
+  .sello-resultado { position: static; display: inline-block; margin-bottom: 6px; }
+
+  /* Enlace del QR: la ficha ocupa el celular en vez de flotar pequeña en el centro. */
+  #pantalla-invitado.activa,
+  #pantalla-mando.activa {
+    justify-content: flex-start;
+    gap: clamp(16px, 3dvh, 28px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  #pantalla-invitado .lobby,
+  #pantalla-mando .lobby {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(14px, 2.5dvh, 24px);
+    text-align: center;
+  }
+  #pantalla-invitado .ticket { padding: clamp(22px, 4dvh, 34px); }
+  #pantalla-invitado .ticket-codigo { font-size: clamp(56px, 18vw, 84px); }
+  #pantalla-invitado .ticket-label,
+  #pantalla-invitado .ticket-pie { font-size: 13px; }
+  #pantalla-invitado .campo,
+  #pantalla-mando .campo { margin-bottom: 0; }
+  #pantalla-invitado input,
+  #pantalla-mando input { min-height: 56px; font-size: 18px; }
+  #pantalla-invitado .boton {
+    margin-top: auto;
+    min-height: 60px;
+    font-size: 17px;
+  }
+  #pantalla-mando .mando-nombre { margin: 0; font-size: clamp(34px, 10vw, 52px); }
+  #pantalla-mando .pista { font-size: 16px; }
+  #pantalla-mando .podio-lobby { margin-top: auto; }
+
+  /* Stroop en celular: el flash se lee y los cuatro colores se tocan sin error. */
+  .panel-escena .stroop-palabra { font-size: clamp(48px, 16vw, 84px); }
+  .stroop-oculto b { font-size: clamp(20px, 6vw, 30px); }
+  .stroop-oculto span { font-size: 14px; }
+  .stroop-botones { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .stroop-opcion { min-height: 56px; font-size: 16px; }
+}
+
+/* ---------- Celular: ningún control queda fuera de alcance ----------
+   La portada mide más que el escenario de un teléfono. Con overflow: hidden
+   el último botón (INDIVIDUAL) quedaba cortado y no se podía tocar. Estas
+   pantallas pasan a ser su propio contenedor de scroll; el body sigue quieto. */
+@media (max-width: 899px), (max-height: 560px) {
+  #pantalla-inicio.activa,
+  #pantalla-individual.activa {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: calc(var(--v-3) + env(safe-area-inset-bottom, 0px));
+    scrollbar-width: thin;
+    scrollbar-color: var(--tinta) var(--papel-oscuro);
+  }
+  #pantalla-inicio.activa::-webkit-scrollbar,
+  #pantalla-individual.activa::-webkit-scrollbar,
+  #pantalla-juego #contenido::-webkit-scrollbar { width: 8px; }
+  #pantalla-inicio.activa::-webkit-scrollbar-track,
+  #pantalla-individual.activa::-webkit-scrollbar-track,
+  #pantalla-juego #contenido::-webkit-scrollbar-track { background: var(--papel-oscuro); }
+  #pantalla-inicio.activa::-webkit-scrollbar-thumb,
+  #pantalla-individual.activa::-webkit-scrollbar-thumb,
+  #pantalla-juego #contenido::-webkit-scrollbar-thumb {
+    background: var(--tinta);
+    border: 2px solid var(--papel-oscuro);
+  }
+
+  /* DAR VUELTO: el panel crece con su contenido en vez de recortarse, y
+     ENTREGAR queda fijo al alcance del pulgar aunque falte recorrer la grilla. */
+  #contenido > .panel-amplio { flex: 0 0 auto; overflow: visible; }
+  .respuesta-vuelto .amplio-abajo {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--papel-claro);
+    border-top: var(--borde);
+    padding-top: var(--v-1);
+  }
+  #vuelto-entregar { max-width: 330px; }
+}
+
+@media (max-width: 600px) {
+  /* Nueve billetes en tres columnas: el total y ENTREGAR caben a la vez. */
+  .respuesta-vuelto .vuelto-denominaciones { grid-template-columns: repeat(3, 1fr); }
+  .respuesta-vuelto .denom .boton { padding-inline: 2px; }
+}
+
+/* ---------- Diálogo de confirmación (salir de la partida) ---------- */
+.dialogo {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: var(--borde);
+  background: var(--papel-claro);
+  color: var(--tinta);
+  box-shadow: 8px 8px 0 var(--rojo);
+}
+.dialogo::backdrop { background: rgba(28, 26, 23, .55); }
+.dialogo[open] { animation: entrar .18s ease-out; }
+.dialogo-cuerpo { padding: 22px 22px 20px; text-align: center; }
+.dialogo-cuerpo .kicker { margin: 0 0 8px; color: var(--rojo); }
+.dialogo-titulo {
+  font-family: var(--display);
+  font-size: clamp(24px, 6vw, 32px);
+  line-height: 1.05;
+  margin: 0 0 10px;
+  padding-bottom: 12px;
+  border-bottom: 3px double var(--tinta);
+}
+.dialogo-cuerpo .pista { margin: 0 0 18px; font-size: 15px; }
+.dialogo-acciones { display: flex; gap: 12px; }
+.dialogo-acciones .boton { flex: 1; margin: 0; }
+
+/* ---------- Escenas amplias (hámsters y cajas) ----------
+   En celular los tres bloques se apilan. En PC el dibujo ocupa el espacio
+   libre a la izquierda y título y controles quedan en una columna a la derecha. */
+.panel-amplio > .amplio-arriba,
+.panel-amplio > .amplio-visual,
+.panel-amplio > .amplio-abajo { width: 100%; }
+.panel-amplio > .amplio-abajo { display: flex; flex-direction: column; align-items: center; gap: var(--v-1); }
+.panel-amplio .amplio-abajo .barra-tiempo { width: 100%; }
+.mira-pantalla {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 140px;
+  padding: 18px;
+  border: 3px dashed var(--tinta);
+  border-radius: 18px;
+  background: var(--papel-claro);
+  text-align: center;
+}
+.mira-pantalla b { font-family: var(--display); font-size: clamp(22px, 7vw, 46px); line-height: 1; }
+.mira-pantalla span { font-size: clamp(14px, 4vw, 20px); color: var(--tinta-suave); }
+.panel-amplio.pantalla-espectadora .amplio-abajo .pista {
+  font-family: var(--display);
+  font-size: clamp(18px, 5vw, 30px);
+}
+@media (min-width: 900px) and (min-height: 520px) {
+  #pantalla-juego #contenido:has(> .panel-amplio) { width: 100%; }
+  #contenido > .panel-amplio {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    grid-template-rows: 1fr auto auto 1fr;
+    column-gap: clamp(20px, 3vw, 40px);
+    row-gap: var(--v-2);
+    align-items: center;
+    text-align: center;
+  }
+  .panel-amplio > .amplio-visual { grid-column: 1; grid-row: 1 / -1; align-self: stretch; min-height: 0; display: flex; }
+  .panel-amplio > .amplio-arriba { grid-column: 2; grid-row: 2; }
+  .panel-amplio > .amplio-abajo { grid-column: 2; grid-row: 3; }
+  .panel-amplio .resultado-cabecera { text-align: left; }
+  .panel-amplio .campo-pajaros { height: auto; flex: 1 1 auto; min-height: 280px; }
+  .panel-amplio .campo-cajas { flex: 1 1 auto; max-width: none; margin: 0; display: flex; min-height: 0; }
+  .panel-amplio .lienzo-cajas { width: 100%; height: 100%; min-height: 0; }
+}
+
+/* ---------- Nombres largos (hasta 14 caracteres) ----------
+   El nombre se recorta con «…» solo si no cabe; «(tú)», «· TÚ», el rol y los
+   puntos quedan siempre en la misma línea. */
+.nombre-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nombre-sufijo { flex: none; white-space: pre; }
+:is(.quien, .nombre):has(> .nombre-txt) {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+:is(.quien, .nombre):has(> .nombre-txt) > :not(.nombre-txt) { flex: none; }
+.marcador .nombre:has(> .nombre-txt) { justify-content: flex-start; }
+.marcador.derecha .nombre:has(> .nombre-txt) { justify-content: flex-end; }
+.fila-podio .quien, .podio-lobby .fila .quien { flex: 1 1 auto; justify-content: flex-start; }
+.ficha-jugador, .ficha-pantalla { max-width: 100%; min-width: 0; }
+.ficha-jugador > :not(.nombre-txt), .ficha-pantalla > :not(.nombre-txt) { flex: none; white-space: nowrap; }
+.mando-nombre {
+  /* 14 «W» caben enteras desde 360px de ancho. */
+  font-size: clamp(20px, min(6.4vw, 8vh), 36px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+}
+.quien > .ganado { margin-left: 6px; }
+
+/* ---------- PC: todos los juegos con el esquema de CAJAS ----------
+   El visual (palabra, frase, relojes, grilla, pirámide, lienzo) crece hasta
+   llenar la columna izquierda; título y controles quedan a la derecha. */
+@media (min-width: 900px) and (min-height: 520px) {
+  .panel-amplio:is([class*="estimulo-"], [class*="respuesta-"], .escritura) > :is(.amplio-visual, .amplio-ref) {
+    container-type: size;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2cqh;
+  }
+  .panel-amplio .stroop-palabra { font-size: clamp(40px, min(13cqi, 32cqh), 170px); }
+  .panel-amplio .frase-silabas { font-size: clamp(24px, min(6cqi, 13cqh), 72px); max-width: 100%; }
+  .panel-amplio .relojes { gap: 4cqi; }
+  .panel-amplio .relojes .reloj-svg { width: min(36cqi, 68cqh); }
+  .panel-amplio .relojes > div > span { font-size: clamp(14px, 4cqh, 26px); }
+  .panel-amplio .reloj-flecha { font-size: clamp(24px, 9cqh, 64px); }
+  .panel-amplio :is(.despertador-hora, .despertador-min, .despertador-puntos) { font-size: clamp(44px, min(11cqi, 24cqh), 130px); }
+  .panel-amplio .grilla-memoria { width: min(100cqi, 96cqh); max-height: none; }
+  .panel-amplio .grilla-memoria .celda-memoria { font-size: clamp(18px, 8cqh, 64px); }
+  .panel-amplio .vuelto-nombre { font-size: clamp(24px, 7cqh, 56px); }
+  .panel-amplio .vuelto-precio { font-size: clamp(44px, 17cqh, 140px); }
+  .panel-amplio .vuelto-pago { font-size: clamp(22px, 6cqh, 44px); }
+  .respuesta-vuelto .vuelto-denominaciones { width: min(100cqi, 620px); gap: 2cqh; }
+  .respuesta-vuelto .denom .boton { min-height: clamp(48px, 15cqh, 96px); font-size: clamp(16px, 5cqh, 30px); }
+  .respuesta-vuelto .vuelto-bandera { width: 100%; }
+
+  /* Pirámide de TRIÁNGULOS a lo grande. */
+  .panel-amplio .triangulo { column-gap: 2.5cqi; row-gap: 1cqh; }
+  .panel-amplio .tri-num { min-width: clamp(56px, 13cqi, 130px); min-height: clamp(48px, 15cqh, 110px); font-size: clamp(24px, 9cqh, 64px); }
+  .panel-amplio .tri-op { font-size: clamp(20px, 7cqh, 44px); }
+  .panel-amplio .tri-flecha { font-size: clamp(22px, 8cqh, 48px); }
+  .panel-amplio .tri-nota { font-size: clamp(12px, 3cqh, 18px); }
+
+  /* Lienzo: solo, ocupa la columna izquierda; con pirámide, va a la derecha. */
+  .escritura:not(.con-ref) #lienzo { width: min(96cqi, calc(100cqh - 70px)); height: min(96cqi, calc(100cqh - 70px)); }
+  .escritura.con-ref { grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); grid-template-rows: 1fr auto auto auto 1fr; }
+  .escritura.con-ref > .amplio-ref { grid-column: 1; grid-row: 1 / -1; align-self: stretch; min-height: 0; display: flex; border-bottom: 0; padding: 0; }
+  .escritura.con-ref > .amplio-arriba { grid-row: 2; }
+  .escritura.con-ref > .amplio-visual { grid-column: 2; grid-row: 3; container-type: normal; }
+  .escritura.con-ref > .amplio-abajo { grid-row: 4; }
+  .escritura.con-ref #lienzo { width: min(100%, 46vh); height: min(100%, 46vh); }
+  .escritura .mini-recordatorio { border-bottom: 0; padding: 0; height: 100%; align-items: center; }
+}
+@media (min-width: 900px) and (min-height: 520px) {
+  /* Dos botoneras lado a lado: la columna de controles necesita más ancho. */
+  #contenido > .respuesta-relojes { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); }
+}
+@media (max-width: 899px), (max-height: 519px) {
+  /* Celular: pirámide + lienzo + botones deben caber sin scroll. */
+  .escritura.con-ref #lienzo { width: min(290px, 25dvh, 72vw); height: min(290px, 25dvh, 72vw); }
 }

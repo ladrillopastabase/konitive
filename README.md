@@ -38,7 +38,7 @@ python test_reconocedor.py
 python servidor.py
 ```
 
-Abre `http://localhost:8000` y elige un modo:
+Abre `http://localhost:6767` y elige un modo:
 
 - **ABRIR SALA**: crea una sala para el duelo; abre la misma dirección en otro
   navegador o pestaña y únete con el código de 5 caracteres.
@@ -57,7 +57,7 @@ Al crear una sala, la pantalla de espera muestra:
 
 El QR lo dibuja el servidor en `/api/qr` como SVG. Si abres la página desde
 `localhost`, el cliente consulta `/api/red` para poner en el QR la IP de la red
-local (`http://IP:8000/?sala=CODIGO`) y así el celular pueda escanearlo. Si
+local (`http://IP:6767/?sala=CODIGO`) y así el celular pueda escanearlo. Si
 abres la página desde un túnel o dominio público, el QR usa ese dominio.
 
 Para unirse, basta con escanear el QR o abrir el enlace: se abre una ficha con el
@@ -68,10 +68,10 @@ sala normal caben 2 jugadores; en FIESTA caben 8 mandos además de la pantalla.
 
 ## Jugar desde otra ciudad (Internet)
 
-Necesitas exponer el puerto 8000. Con Cloudflare Tunnel (gratis, sin cuenta):
+Necesitas exponer el puerto 6767. Con Cloudflare Tunnel (gratis, sin cuenta):
 
 ```bash
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel --url http://localhost:6767
 ```
 
 La herramienta muestra una URL pública propia; compártela junto con el código
@@ -79,7 +79,7 @@ La herramienta muestra una URL pública propia; compártela junto con el código
 dominio. Alternativa con ngrok:
 
 ```bash
-ngrok http 8000
+ngrok http 6767
 ```
 
 > Deja el servidor y el túnel abiertos mientras juegan.
@@ -158,7 +158,7 @@ respuesta correcta, cronometra y valida; el celular solo muestra y envía. El
 feedback es **verde** al acertar y **rojo** al fallar, tanto en la pantalla como
 en el mando.
 
-La puntuación es el **Brain Age**: `tiempo total + 2 segundos por error`
+La puntuación es el **Brain Age**: `tiempo total + 5 segundos por error`
 (menor es mejor). El informe final muestra también la **precisión** y el
 **tiempo promedio por ronda**. En el podio de FIESTA se invierte a puntos altos
 para que el orden siga siendo de mayor a menor, como en los juegos clásicos.
@@ -166,8 +166,10 @@ para que el orden siga siendo de mayor a menor, como en los juegos clásicos.
 ### STROOP
 
 20 rondas. Aparece un color escrito con tinta de otro color; hay que tocar el
-**color de la tinta**, no lo que dice la palabra. A partir de la quinta ronda
-predominan los estímulos incongruentes.
+**color de la tinta**, no lo que dice la palabra. La palabra se ve solo un
+instante —de **1,2 s** en la primera ronda a **0,5 s** en la última— y después
+se borra: queda un aviso neutro y hay que responder de memoria en **3 s**.
+A partir de la quinta ronda predominan los estímulos incongruentes.
 
 ### TRIÁNGULOS
 
@@ -239,9 +241,14 @@ los cuatro clásicos y los siete minijuegos anteriores.
 
 ## Cómo funciona
 
-- **Servidor** (`servidor.py`): FastAPI + WebSockets. Crea salas, sincroniza las
-  fases, reparte roles, recibe las respuestas, lleva el marcador y decide el
-  podio. Es el árbitro, también en FIESTA.
+- **Servidor** (`servidor.py`): FastAPI + WebSockets. Crea salas, reparte roles
+  y despacha cada mensaje al árbitro. Admite hasta 200 salas abiertas a la vez.
+- **Árbitro** (`arbitro/`): sincroniza las fases, valida las respuestas, lleva
+  el marcador y decide el podio, también en FIESTA. `nucleo.py` tiene las salas,
+  los jugadores y las esperas; hay un módulo por juego (`clasico.py` para
+  PÁJAROS y PALABRAS, `cajas.py`, `operaciones.py`, `minijuegos.py`) y
+  `sesiones.py` encadena los juegos de INDIVIDUAL y FIESTA. El reconocimiento de
+  trazos corre en un hilo aparte para no frenar al resto de jugadores.
 - **Reconocedores** (`juego/reconocedor.py`): rasterizan los trazos del navegador
   a 28×28, aplican el preprocesado EMNIST (incluido el *transpose*) y usan el
   modelo de letras o el de dígitos según el juego.
@@ -285,6 +292,7 @@ python test_salas.py         # QR, unión por código, roles, aforo y podio
 python test_individual.py    # uno/varios/todos, orden, resumen y repetición
 python test_silabas.py       # corpus de 63 frases y separación silábica válida
 python test_minijuegos.py    # los siete minijuegos en individual y fiesta
+python test_revision.py      # memoria, vuelto con trampas, envío doble y tope de salas
 
 node --check static/app.js   # sintaxis del cliente
 ```

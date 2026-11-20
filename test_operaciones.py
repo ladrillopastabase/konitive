@@ -18,6 +18,7 @@ import uvicorn
 import websockets
 
 import servidor
+from arbitro import nucleo
 from juego.operaciones import generar_operacion, nivel_para
 
 
@@ -30,14 +31,14 @@ class ReconocedorFalso:
         return str(indice), 0.99, [0.0] * 10
 
 
-servidor.reconocedor_digitos = ReconocedorFalso()
+nucleo.reconocedor_digitos = ReconocedorFalso()
 
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
-servidor.pausa = pausa_corta
+nucleo.pausa = pausa_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8767, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -215,12 +216,25 @@ async def jugar_fiesta() -> None:
         await asyncio.sleep(0.01)
 
     assert host.de_tipo("operacion_over"), "La fiesta de operaciones no terminó"
-    assert len(host.de_tipo("operacion_show")) == 10
+    assert len(host.de_tipo("operacion_show")) == nucleo.RONDAS_FIESTA
+    assert host.de_tipo("progreso_vivo"), "La pantalla no recibió el avance de cifras"
     for mando, _ in mandos:
+        assert not mando.de_tipo("progreso_vivo"), "El mando no debe ver avances ajenos"
         shows = mando.de_tipo("operacion_show")
-        assert len(shows) == 10
+        assert len(shows) == nucleo.RONDAS_FIESTA
         assert all("texto" not in show for show in shows)
-        await mando.esperar("podium_update")
+        # El enunciado resuelto y el desglose solo llegan a la pantalla.
+        informes = mando.de_tipo("operacion_result")
+        assert len(informes) == nucleo.RONDAS_FIESTA
+        assert all(
+            not any(
+                c in informe
+                for c in ("texto", "resultado", "desglose", "clasificacion")
+            )
+            for informe in informes
+        ), informes
+        # El podio (con puntos de todos) solo se proyecta en la pantalla.
+        assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")
 
     podio = await host.esperar("podium_update")
     puntos = podio["puntos_juego"]
