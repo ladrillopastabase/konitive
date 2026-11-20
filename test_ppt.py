@@ -243,6 +243,74 @@ async def probar_ppt_ignora_respuestas_invalidas_y_empate() -> None:
     print("Individual ppt: respuestas inválidas y fuera de ronda ignoradas")
 
 
+async def probar_ppt_fiesta_no_filtra_la_respuesta() -> None:
+    host = Cliente(await websockets.connect(URL))
+    await host.enviar({"type": "fiesta", "nombre": "Pantalla"})
+    codigo = (await host.esperar("room_created"))["codigo"]
+
+    mandos = []
+    for nombre in ("Ana", "Beto"):
+        mando = Cliente(await websockets.connect(URL))
+        await mando.enviar({"type": "join", "nombre": nombre, "codigo": codigo})
+        mandos.append(mando)
+    ids_mandos = {(await mando.esperar("room_joined"))["id"] for mando in mandos}
+
+    await host.enviar(
+        {
+            "type": "start",
+            "juegos": ["ppt"],
+            "ajustes": {"ppt": {"rondas": 3, "dificultad": "facil"}},
+        }
+    )
+
+    shows = []
+    for ronda in range(3):
+        show_pantalla = await host.esperar("ppt_show", desde=ronda)
+        shows.append(show_pantalla)
+        assert {"rival", "objetivo"} <= show_pantalla.keys(), show_pantalla
+        assert "esperado" not in show_pantalla, show_pantalla
+        write_pantalla = await host.esperar("ppt_write", desde=ronda)
+        assert {"rival", "objetivo"} <= write_pantalla.keys(), write_pantalla
+        assert "esperado" not in write_pantalla, write_pantalla
+        mano = mana_para(show_pantalla["rival"], show_pantalla["objetivo"])
+        for mando in mandos:
+            show_mando = await mando.esperar("ppt_show", desde=ronda)
+            assert not ({"rival", "objetivo", "esperado"} & show_mando.keys()), show_mando
+            assert show_mando.get("mira") is True, show_mando
+            write_mando = await mando.esperar("ppt_write", desde=ronda)
+            assert "esperado" not in write_mando, write_mando
+            await mando.enviar(
+                {
+                    "type": "ppt_answer",
+                    "ronda": show_pantalla["ronda"],
+                    "respuesta": mano,
+                }
+            )
+        result_pantalla = await host.esperar("ppt_result", desde=ronda)
+        assert (
+            result_pantalla["reto"]["esperado"]
+            == mana_para(show_pantalla["rival"], show_pantalla["objetivo"])
+        ), result_pantalla
+        for mando in mandos:
+            result_mando = await mando.esperar("ppt_result", desde=ronda)
+            assert set(result_mando) <= {"type", "ronda"}, result_mando
+
+    consignas = {show["objetivo"] for show in shows}
+    assert consignas == {"ganar", "perder"}, consignas
+
+    podio = await host.esperar("podium_update")
+    assert {fila["id"] for fila in podio["despues"]} == ids_mandos, podio
+    assert not host.de_tipo("podium_final"), host.de_tipo("podium_final")
+    for mando in mandos:
+        assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")
+
+    for cliente in (host, *mandos):
+        await cliente.cerrar()
+    while servidor.salas:
+        await asyncio.sleep(0.01)
+    print("Fiesta ppt: mandos sin secretos; consignas y podio solo en pantalla")
+
+
 async def main() -> None:
     probar_cliente_incluye_ppt_en_selector_y_mensajes()
     print("Cliente: selector y mensajes de ppt presentes")
@@ -260,6 +328,7 @@ async def main() -> None:
     print("Resultado: la respuesta se revela solo al terminar la ronda")
     await probar_ppt_individual_responde_bien_y_resume()
     await probar_ppt_ignora_respuestas_invalidas_y_empate()
+    await probar_ppt_fiesta_no_filtra_la_respuesta()
     print("\nOK - Piedra papel tijera correcto")
 
 
