@@ -47,6 +47,7 @@ from arbitro.clasico import (
 from arbitro.cajas import bucle_cajas
 from arbitro.operaciones import bucle_operaciones
 from arbitro.minijuegos import manejar_respuesta_mini
+from arbitro.rastreo import manejar_respuesta_rastreo
 from arbitro.sesiones import bucle_fiesta, bucle_individual
 
 
@@ -196,6 +197,9 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
             sala.evento_cancelar.clear()
             sala.fase = "jugando"
             sala.tarea = lanzar(bucle_cajas(sala))
+
+    elif tipo == "rastreo_answer":
+        await manejar_respuesta_rastreo(sala, jugador, mensaje)
 
     elif tipo in TIPOS_RESPUESTA_MINI:
         await manejar_respuesta_mini(sala, jugador, mensaje, TIPOS_RESPUESTA_MINI[tipo])

@@ -10,6 +10,7 @@ from arbitro.clasico import bucle_partida
 from arbitro.cajas import bucle_cajas
 from arbitro.operaciones import bucle_operaciones
 from arbitro.minijuegos import bucle_minijuego
+from arbitro.rastreo import bucle_rastreo
 
 
 async def bucle_individual(sala: Sala) -> None:
@@ -44,6 +45,8 @@ async def bucle_individual(sala: Sala) -> None:
                 await bucle_cajas(sala)
             elif juego == "operaciones":
                 await bucle_operaciones(sala)
+            elif juego == "rastreo":
+                await bucle_rastreo(sala)
             elif juego in JUEGOS_MINI:
                 await bucle_minijuego(sala, juego)
             if sala.cancelada:
@@ -79,6 +82,8 @@ async def bucle_fiesta(sala: Sala) -> None:
             await bucle_cajas(sala)
         elif juego == "operaciones":
             await bucle_operaciones(sala)
+        elif juego == "rastreo":
+            await bucle_rastreo(sala)
         elif juego in JUEGOS_MINI:
             await bucle_minijuego(sala, juego)
         if sala.cancelada:

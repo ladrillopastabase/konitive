@@ -93,7 +93,122 @@ def probar_rastreo_contrato_cliente():
     assert ".rastreo-tablero" in css
     assert "@keyframes rastreo-entrada" in css
 
-def main():
+import asyncio, json, threading, time
+from pathlib import Path
+import uvicorn, websockets
+import servidor
+from arbitro import nucleo
+from juego.rastreo import NIVELES, LADOS
+
+async def pausa_corta(sala, segundos):
+    await asyncio.sleep(0.01)
+
+nucleo.pausa = pausa_corta
+config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8786, log_level="error")
+servidor_uvicorn = uvicorn.Server(config)
+threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
+while not servidor_uvicorn.started:
+    time.sleep(0.02)
+URL = "ws://127.0.0.1:8786/ws"
+BASE = Path(__file__).parent
+
+
+class Cliente:
+    def __init__(self, ws):
+        self.ws = ws
+        self.recibidos = []
+        self.tarea = asyncio.create_task(self._leer())
+
+    async def _leer(self):
+        try:
+            async for crudo in self.ws:
+                self.recibidos.append(json.loads(crudo))
+        except websockets.ConnectionClosed:
+            pass
+
+    async def enviar(self, objeto):
+        await self.ws.send(json.dumps(objeto))
+
+    def de_tipo(self, tipo):
+        return [m for m in self.recibidos if m["type"] == tipo]
+
+    async def esperar(self, tipo, timeout=10, desde=0):
+        fin = time.monotonic() + timeout
+        while True:
+            encontrados = self.de_tipo(tipo)
+            if len(encontrados) > desde:
+                return encontrados[-1]
+            assert time.monotonic() < fin, (
+                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
+            )
+            await asyncio.sleep(0.01)
+
+    async def cerrar(self):
+        self.tarea.cancel()
+        await self.ws.close()
+
+
+async def probar_rastreo_individual_y_seleccion_invalida():
+    cliente = Cliente(await websockets.connect(URL))
+    await cliente.enviar({"type": "individual", "nombre": "RASTREO", "juegos": ["rastreo"]})
+    await cliente.esperar("room_created")
+    show = await cliente.esperar("rastreo_show")
+    assert len(show["tablero"]) == 12
+    assert "final" not in show and "h1" not in show
+    await cliente.esperar("rastreo_hide")
+    await cliente.esperar("rastreo_write")
+    movimientos = cliente.de_tipo("rastreo_move")
+    assert len(movimientos) == NIVELES["facil"]["entradas"]
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3]})
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3, 3]})
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3, 99]})
+    assert not cliente.de_tipo("rastreo_feedback")
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [0, 1]})
+    await cliente.esperar("rastreo_feedback")
+    assert len(cliente.de_tipo("rastreo_feedback")) == 1
+    await cliente.cerrar()
+    while servidor.salas:
+        await asyncio.sleep(0.01)
+
+
+async def probar_rastreo_movimientos_secuenciales():
+    cliente = Cliente(await websockets.connect(URL))
+    await cliente.enviar({"type": "individual", "nombre": "SEC", "juegos": ["rastreo"]})
+    await cliente.esperar("rastreo_show")
+    await cliente.esperar("rastreo_write")
+    movimientos = cliente.de_tipo("rastreo_move")
+    assert [m["indice"] for m in movimientos] == list(range(1, len(movimientos) + 1))
+    assert all(m["duracion"] > 0 and m["lado"] in LADOS for m in movimientos)
+    await cliente.cerrar()
+    while servidor.salas:
+        await asyncio.sleep(0.01)
+
+
+async def probar_rastreo_fiesta_mandos_sin_posiciones():
+    host = Cliente(await websockets.connect(URL))
+    await host.enviar({"type": "fiesta", "nombre": "Pantalla"})
+    codigo = (await host.esperar("room_created"))["codigo"]
+    mando = Cliente(await websockets.connect(URL))
+    await mando.enviar({"type": "join", "nombre": "Ana", "codigo": codigo})
+    await mando.esperar("room_joined")
+    await host.enviar({
+        "type": "start", "juegos": ["rastreo"],
+        "ajustes": {"rastreo": {"rondas": 1, "dificultad": "experto"}},
+    })
+    await host.esperar("rastreo_show")
+    await mando.esperar("rastreo_show")
+    await mando.esperar("rastreo_write")
+    for mensaje in mando.recibidos:
+        if mensaje["type"].startswith("rastreo_"):
+            assert "tablero" not in mensaje and "final" not in mensaje
+            assert "h1" not in mensaje and "h2" not in mensaje
+    for cliente in (host, mando):
+        await cliente.cerrar()
+    while servidor.salas:
+        await asyncio.sleep(0.01)
+
+
+async def main():
     probar_tablero_arranca_con_10_gatos_y_2_hamsters()
     probar_desplazamientos_en_los_cuatro_lados()
     probar_rastreo_no_duplica_ni_pierde_hamsters_tras_200_entradas()
@@ -102,7 +217,10 @@ def main():
     probar_puntaje_y_generador_son_deterministas()
     probar_rastreo_registrado_como_13a_prueba()
     probar_rastreo_contrato_cliente()
+    await probar_rastreo_individual_y_seleccion_invalida()
+    await probar_rastreo_movimientos_secuenciales()
+    await probar_rastreo_fiesta_mandos_sin_posiciones()
     print("\nOK - Rastreo de hamsters correcto")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
