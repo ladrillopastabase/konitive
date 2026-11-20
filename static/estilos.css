@@ -1268,21 +1268,21 @@ input::placeholder { color: #a39b8c; }
 .rastreo-numero.seleccionada { outline: 3px solid var(--rojo); outline-offset: 2px; }
 .rastreo-mando-pista { font-family: var(--display); font-size: clamp(18px, 4vh, 30px); }
 
-/* Un paso exacto de casilla: 1/4 del ancho, 1/3 del alto, más el hueco. */
+/* Un paso exacto de casilla: el 100% es la celda misma, más el hueco de la rejilla. */
 @keyframes rastreo-entrada-izquierda {
-  from { transform: translateX(calc(-100% / 4 - var(--v-1))); }
+  from { transform: translateX(calc(-100% - var(--v-1))); }
   to { transform: translateX(0); }
 }
 @keyframes rastreo-entrada-derecha {
-  from { transform: translateX(calc(100% / 4 + var(--v-1))); }
+  from { transform: translateX(calc(100% + var(--v-1))); }
   to { transform: translateX(0); }
 }
 @keyframes rastreo-entrada-arriba {
-  from { transform: translateY(calc(-100% / 3 - var(--v-1))); }
+  from { transform: translateY(calc(-100% - var(--v-1))); }
   to { transform: translateY(0); }
 }
 @keyframes rastreo-entrada-abajo {
-  from { transform: translateY(calc(100% / 3 + var(--v-1))); }
+  from { transform: translateY(calc(100% + var(--v-1))); }
   to { transform: translateY(0); }
 }
 .rastreo-casilla.rastreo-entrada-izquierda { animation: rastreo-entrada-izquierda var(--rastreo-duracion, .3s) steps(1, end) 1 both; }

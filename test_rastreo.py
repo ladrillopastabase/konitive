@@ -102,6 +102,7 @@ def probar_rastreo_cliente_reutiliza_sprite_y_fases():
     assert "rastreo_answer" in js and "rastreo_move" in js
     assert "AnimationController" in js
     assert ".rastreo-casilla" in css
+    assert "calc(-100% - var(--v-1))" in css and "calc(100% + var(--v-1))" in css
 
 import asyncio, json, threading, time
 from pathlib import Path
