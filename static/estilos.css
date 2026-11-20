@@ -1184,10 +1184,111 @@ input::placeholder { color: #a39b8c; }
 .ppt-respuesta .ppt-consigna.ppt-ganar { box-shadow: 4px 4px 0 var(--verde); }
 .ppt-respuesta .ppt-consigna.ppt-perder { box-shadow: 4px 4px 0 var(--rojo); }
 
-/* Rastreo de hámsters: selectores reservados; el render real llega después. */
-.rastreo-tablero {}
-.rastreo-casilla {}
-@keyframes rastreo-entrada {}
+/* Rastreo de hámsters: tablero fijo de 3×4, casillas de papel y tinta. */
+.rastreo-tablero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: var(--v-1);
+  width: min(100%, 560px);
+  height: min(60dvh, 420px);
+  margin: 0 auto;
+  padding: var(--v-1);
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-oscuro);
+  box-shadow: 6px 6px 0 var(--tinta);
+}
+.rastreo-casilla {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  color: var(--tinta);
+  font-family: var(--mono);
+  font-size: clamp(20px, 5vh, 44px);
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 3px 3px 0 var(--tinta);
+}
+.rastreo-casilla:disabled { color: var(--tinta); }
+.rastreo-casilla:not(:disabled) { cursor: pointer; }
+.rastreo-casilla:not(:disabled):hover { background: var(--papel-oscuro); }
+.rastreo-casilla:focus-visible,
+.rastreo-casilla.seleccionada { outline: 3px solid var(--rojo); outline-offset: 2px; }
+.rastreo-casilla.acierto { outline: 3px solid var(--verde); outline-offset: 2px; }
+.rastreo-casilla.fallo { outline: 3px solid var(--rojo); outline-offset: 2px; }
+.rastreo-ave { display: block; width: 88%; height: 88%; }
+.rastreo-ave svg { display: block; width: 100%; height: 100%; }
+.rastreo-metricas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--v-2);
+  margin-top: var(--v-1);
+}
+.rastreo-metricas div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 96px;
+  padding: var(--v-1) var(--v-2);
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  box-shadow: 4px 4px 0 var(--tinta);
+}
+.rastreo-metricas b { font-family: var(--display); font-size: clamp(22px, 4vh, 34px); }
+.rastreo-metricas span { font-family: var(--mono); font-size: 14px; letter-spacing: .08em; color: var(--tinta-suave); }
+.rastreo-numeros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--v-1);
+  width: min(100%, 420px);
+  margin: 0 auto;
+}
+.rastreo-numero {
+  min-height: 44px;
+  border: 2px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel-claro);
+  color: var(--tinta);
+  font-family: var(--mono);
+  font-size: clamp(16px, 3vh, 22px);
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--tinta);
+}
+.rastreo-numero:disabled { color: var(--tinta); }
+.rastreo-numero:focus-visible,
+.rastreo-numero.seleccionada { outline: 3px solid var(--rojo); outline-offset: 2px; }
+.rastreo-mando-pista { font-family: var(--display); font-size: clamp(18px, 4vh, 30px); }
+
+/* Un paso exacto de casilla: 1/4 del ancho, 1/3 del alto, más el hueco. */
+@keyframes rastreo-entrada-izquierda {
+  from { transform: translateX(calc(-100% / 4 - var(--v-1))); }
+  to { transform: translateX(0); }
+}
+@keyframes rastreo-entrada-derecha {
+  from { transform: translateX(calc(100% / 4 + var(--v-1))); }
+  to { transform: translateX(0); }
+}
+@keyframes rastreo-entrada-arriba {
+  from { transform: translateY(calc(-100% / 3 - var(--v-1))); }
+  to { transform: translateY(0); }
+}
+@keyframes rastreo-entrada-abajo {
+  from { transform: translateY(calc(100% / 3 + var(--v-1))); }
+  to { transform: translateY(0); }
+}
+.rastreo-casilla.rastreo-entrada-izquierda { animation: rastreo-entrada-izquierda var(--rastreo-duracion, .3s) steps(1, end) 1 both; }
+.rastreo-casilla.rastreo-entrada-derecha { animation: rastreo-entrada-derecha var(--rastreo-duracion, .3s) steps(1, end) 1 both; }
+.rastreo-casilla.rastreo-entrada-arriba { animation: rastreo-entrada-arriba var(--rastreo-duracion, .3s) steps(1, end) 1 both; }
+.rastreo-casilla.rastreo-entrada-abajo { animation: rastreo-entrada-abajo var(--rastreo-duracion, .3s) steps(1, end) 1 both; }
 
 /* Triángulos: rejilla 5 columnas + rótulo; las flechas unen cada par con su casilla. */
 .triangulo {
@@ -1460,6 +1561,7 @@ input::placeholder { color: #a39b8c; }
 @media (prefers-reduced-motion: reduce) {
   .pantalla.activa, .flash-palabra, .cuenta-previa-numero { animation: none; }
   .fila-podio { will-change: auto; }
+  .rastreo-casilla[class*="rastreo-entrada-"] { animation: none; }
 }
 
 /* ---------- Celular: piso de legibilidad ----------
@@ -1649,6 +1751,7 @@ input::placeholder { color: #a39b8c; }
   .panel-amplio > .amplio-abajo { grid-column: 2; grid-row: 3; }
   .panel-amplio .resultado-cabecera { text-align: left; }
   .panel-amplio .campo-pajaros { height: auto; flex: 1 1 auto; min-height: 280px; }
+  .panel-amplio .rastreo-tablero { height:auto; flex:1 1 auto; min-height:280px; }
   .panel-amplio .campo-cajas { flex: 1 1 auto; max-width: none; margin: 0; display: flex; min-height: 0; }
   .panel-amplio .lienzo-cajas { width: 100%; height: 100%; min-height: 0; }
 }

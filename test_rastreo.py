@@ -93,6 +93,16 @@ def probar_rastreo_contrato_cliente():
     assert ".rastreo-tablero" in css
     assert "@keyframes rastreo-entrada" in css
 
+def probar_rastreo_cliente_reutiliza_sprite_y_fases():
+    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
+    assert "HAMSTER_PIXELES" in js and "AVE_SVG" in js
+    assert "PELAJES[0]" in js
+    assert "rastreo_hide" in js and "rastreo_result" in js
+    assert "rastreo_answer" in js and "rastreo_move" in js
+    assert "AnimationController" in js
+    assert ".rastreo-casilla" in css
+
 import asyncio, json, threading, time
 from pathlib import Path
 import uvicorn, websockets
@@ -217,6 +227,7 @@ async def main():
     probar_puntaje_y_generador_son_deterministas()
     probar_rastreo_registrado_como_13a_prueba()
     probar_rastreo_contrato_cliente()
+    probar_rastreo_cliente_reutiliza_sprite_y_fases()
     await probar_rastreo_individual_y_seleccion_invalida()
     await probar_rastreo_movimientos_secuenciales()
     await probar_rastreo_fiesta_mandos_sin_posiciones()

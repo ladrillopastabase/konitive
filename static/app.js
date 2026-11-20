@@ -106,6 +106,40 @@
     ["#e3a24f", "#fbe6c4"], ["#9aa1a8", "#eef0f2"], ["#8a5a3b", "#ecd3b6"],
     ["#f3ece0", "#ffffff"], ["#c9733a", "#f7d9b3"], ["#4a4540", "#d8d0c4"],
   ];
+  const LADOS_RASTREO = ["izquierda", "derecha", "arriba", "abajo"];
+  const CLASES_ENTRADA = LADOS_RASTREO.map((lado) => `rastreo-entrada-${lado}`);
+
+  // Un desplazamiento a la vez: animar() cancela el temporizador anterior y
+  // detenerTimers() retira cualquier clase que haya quedado sobre el tablero.
+  const AnimationController = {
+    temporizador: null,
+    detener() {
+      if (this.temporizador) clearTimeout(this.temporizador);
+      this.temporizador = null;
+      $("contenido")?.querySelectorAll(".rastreo-casilla").forEach((celda) => {
+        CLASES_ENTRADA.forEach((clase) => celda.classList.remove(clase));
+      });
+    },
+    animar(movimiento) {
+      this.detener();
+      if (!movimiento || !LADOS_RASTREO.includes(movimiento.lado)) return;
+      const tablero = $("rastreo-tablero");
+      if (!tablero) return;
+      const duracion = Math.max(0, Number(movimiento.duracion) || 0);
+      tablero.style.setProperty("--rastreo-duracion", `${duracion}s`);
+      const linea = Number(movimiento.linea);
+      const clase = `rastreo-entrada-${movimiento.lado}`;
+      const horizontal = movimiento.lado === "izquierda" || movimiento.lado === "derecha";
+      const afectadas = [...tablero.querySelectorAll(".rastreo-casilla")].filter((_, i) =>
+        horizontal ? Math.floor(i / 4) === linea : i % 4 === linea
+      );
+      afectadas.forEach((celda) => celda.classList.add(clase));
+      this.temporizador = setTimeout(() => {
+        afectadas.forEach((celda) => celda.classList.remove(clase));
+        this.temporizador = null;
+      }, duracion * 1000);
+    },
+  };
 
   /* ---------- Utilidades ---------- */
   // Solo la pantalla del anfitrión necesita blockers de suspensión: los mandos
@@ -215,6 +249,7 @@
   }
 
   function detenerTimers() {
+    AnimationController.detener();
     if (animacion) cancelAnimationFrame(animacion);
     animacion = null;
     clearInterval(cuentaTimer);
@@ -1072,6 +1107,46 @@
         else mostrarFinalOperaciones(msg);
         break;
 
+      case "rastreo_countdown":
+        mostrarCuentaPrevia(msg, {
+          kicker: "FASE 01 · PREPARA LA VISTA",
+          pie: "RASTREA DOS HÁMSTERS",
+          glifo: "◎",
+        });
+        break;
+
+      case "rastreo_show":
+        mostrarRastreo(msg, "observacion");
+        break;
+
+      case "rastreo_hide":
+        AnimationController.detener();
+        mostrarRastreo(msg, "movimiento");
+        break;
+
+      case "rastreo_move":
+        AnimationController.animar(msg);
+        break;
+
+      case "rastreo_write":
+        mostrarRastreo(msg, "identificacion");
+        break;
+
+      case "rastreo_feedback":
+        if (msg.pid !== yoId) return;
+        aviso(msg.aciertos === 2 ? "¡LOS DOS HÁMSTERS!" : `${msg.aciertos || 0} DE 2 · BIEN`);
+        break;
+
+      case "rastreo_result":
+        if (!resultadoSoloEnPantalla()) mostrarResultadoRastreo(msg);
+        break;
+
+      case "rastreo_over":
+        if (secuenciaIndividual) aviso("PRUEBA TERMINADA");
+        else if (modoFiesta) aviso("JUEGO TERMINADO · PODIO");
+        else mostrarFinalRastreo(msg);
+        break;
+
       case "match_over":
         if (secuenciaIndividual) break;
         if (modoFiesta) {
@@ -1802,6 +1877,143 @@
         ...NOMBRES_MINI,
       }[juego] || "KONITIVE"
     );
+  }
+
+  /* ---------- Rastreo de hámsters: tablero, fases y selección ---------- */
+  const FASES_RASTREO = {
+    observacion: "FASE 01 · OBSERVA",
+    movimiento: "FASE 02 · SIGUE LAS CASILLAS",
+    identificacion: "FASE 03 · SEÑALA DOS HÁMSTERS",
+  };
+
+  function tableroRastreoHtml({ valores, mostrarAves, interactiva, seleccion = [], marcas = {} }) {
+    const [pelo, panza] = PELAJES[0];
+    return `<div class="rastreo-tablero" id="rastreo-tablero">${Array.from({ length: 12 }, (_, i) => {
+      const ave = mostrarAves && Array.isArray(valores) && valores[i] && valores[i] !== "G";
+      const contenido = ave
+        ? `<span class="rastreo-ave" style="--pelo:${pelo};--panza:${panza}">${AVE_SVG}</span>`
+        : "?";
+      const clases = [
+        "rastreo-casilla",
+        seleccion.includes(i) ? "seleccionada" : "",
+        marcas[i] || "",
+      ].filter(Boolean).join(" ");
+      return `<button type="button" class="${clases}" data-celda="${i}" ${interactiva ? "" : "disabled"}>${contenido}</button>`;
+    }).join("")}</div>`;
+  }
+
+  function mostrarRastreo(msg, fase) {
+    detenerTimers();
+    const kicker = FASES_RASTREO[fase] || FASES_RASTREO.movimiento;
+    if (esMandoFiesta()) {
+      if (fase === "identificacion") {
+        $("etiqueta-ronda").textContent = `RONDA ${String(msg.ronda || 0).padStart(2, "0")}`;
+        $("titulo-juego").textContent = "RASTREO DE HÁMSTERS";
+        $("contenido").innerHTML = panelAmplio(
+          `<p class="kicker">${kicker}</p>`,
+          '<p class="rastreo-mando-pista">ELIGE DOS NÚMEROS</p>',
+          `<div class="rastreo-numeros">${Array.from({ length: 12 }, (_, i) =>
+            `<button type="button" class="rastreo-numero" data-celda="${i}">${i + 1}</button>`).join("")}</div>`,
+          "respuesta-rastreo rastreo-mando"
+        );
+        configurarSeleccionRastreo(msg);
+        return;
+      }
+      mostrarEspera(
+        "MIRA LA PANTALLA",
+        fase === "observacion" ? "¡OBSERVA!" : "¡SIGUE LAS CASILLAS!",
+        "El tablero aparece solo en la pantalla del anfitrión.",
+        msg.duracion || 0
+      );
+      return;
+    }
+
+    const pantalla = esPantallaFiesta();
+    const observa = fase === "observacion";
+    const interactiva = fase === "identificacion" && !pantalla;
+    const pista = observa
+      ? "Memoriza dónde están los dos hámsters: los dibujos, no las incógnitas."
+      : fase === "movimiento"
+        ? "Sigue las casillas. Las identidades quedan ocultas."
+        : pantalla
+          ? "Los mandos señalan dos casillas desde su celular."
+          : "Toca las dos casillas donde crees que están los hámsters.";
+    const abajo = `<p class="pista">${pista}</p>` +
+      (msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : "");
+    $("contenido").innerHTML = panelAmplio(
+      `<p class="kicker">${kicker}</p>`,
+      tableroRastreoHtml({ valores: msg.tablero || [], mostrarAves: observa, interactiva }),
+      abajo,
+      `respuesta-rastreo rastreo-${fase}${pantalla ? " pantalla-espectadora" : ""}`
+    );
+    if (interactiva) configurarSeleccionRastreo(msg);
+    if (msg.duracion) actualizarBarraCajas(msg.duracion);
+  }
+
+  function configurarSeleccionRastreo(msg) {
+    const botones = [...$("contenido").querySelectorAll("[data-celda]")];
+    const elegidas = [];
+    let enviada = false;
+    botones.forEach((boton) => {
+      boton.addEventListener("click", () => {
+        if (enviada) return;
+        const indice = Number(boton.dataset.celda);
+        if (elegidas.includes(indice)) return;
+        elegidas.push(indice);
+        boton.classList.add("seleccionada");
+        if (elegidas.length < 2) return;
+        enviada = true;
+        botones.forEach((b) => (b.disabled = true));
+        enviar({ type: "rastreo_answer", ronda: msg.ronda, respuesta: [...elegidas] });
+      });
+    });
+  }
+
+  function mostrarResultadoRastreo(msg) {
+    detenerTimers();
+    const posiciones = Object.values(msg.reto?.final || {});
+    const seleccion = Array.isArray(msg.seleccion) ? msg.seleccion : [];
+    const marcas = {};
+    seleccion.forEach((i) => (marcas[i] = posiciones.includes(i) ? "acierto" : "fallo"));
+    const valores = Array.from({ length: 12 }, (_, i) => (posiciones.includes(i) ? "h" : "G"));
+    $("contenido").innerHTML = panelAmplio(
+      `<p class="kicker">RASTREO DE HÁMSTERS · RONDA ${String(msg.ronda || 0).padStart(2, "0")}</p>`,
+      tableroRastreoHtml({ valores, mostrarAves: true, interactiva: false, seleccion, marcas }),
+      `<p class="pista">Los dos dibujos son los hámsters; el contorno señala tu elección.</p>
+       <div class="rastreo-metricas">
+         <div><b>${Number(msg.aciertos) || 0} / 2</b><span>ACIERTOS</span></div>
+         <div><b>${Number(msg.precision) || 0}%</b><span>PRECISIÓN</span></div>
+         <div><b>${Number(msg.brain_age) || 0}</b><span>BRAIN AGE</span></div>
+       </div>`,
+      "respuesta-rastreo resultado-rastreo"
+    );
+  }
+
+  function mostrarFinalRastreo(msg) {
+    detenerTimers();
+    const filas = (msg.clasificacion || [])
+      .map((fila) => `<div class="puntaje ${fila.id === yoId ? "propio" : ""}">
+        <div class="numero">${fila.brain_age ?? fila.puntos ?? 0}</div>
+        <div class="quien">${nombreHtml(fila.nombre)}</div>
+        <div class="desglose">${fila.brain_age != null ? "BRAIN AGE · MENOR ES MEJOR" : "PUNTOS"}</div>
+      </div>`)
+      .join("");
+    $("contenido").innerHTML = `<div class="panel resultado">
+      <div class="resultado-cabecera">
+        <p class="kicker">INFORME FINAL · RASTREO DE HÁMSTERS</p>
+        <p class="panel-titulo">TU ENTRENAMIENTO</p>
+      </div>
+      <div class="puntajes">
+        <div class="puntaje"><div class="numero">${msg.brain_age ?? 0}</div><div class="quien">BRAIN AGE · MENOR ES MEJOR</div></div>
+        <div class="puntaje"><div class="numero">${msg.precision ?? 0}%</div><div class="quien">PRECISIÓN</div></div>
+        <div class="puntaje"><div class="numero">${msg.tiempo_promedio ?? 0} s</div><div class="quien">TIEMPO POR RONDA</div></div>
+      </div>
+      <div class="puntajes">${filas}</div>
+      <div class="diploma-acciones">
+        <button class="boton rojo chico" id="btn-volver-rastreo">VOLVER AL INICIO</button>
+      </div>
+    </div>`;
+    $("btn-volver-rastreo").addEventListener("click", () => volverAlInicio());
   }
 
   function iniciarRonda(msg) {
