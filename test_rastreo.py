@@ -1,4 +1,8 @@
 import random
+from pathlib import Path
+
+from juego.minijuegos import JUEGOS_MINI
+from arbitro.nucleo import JUEGOS_FIESTA, NOMBRES_JUEGOS
 from juego.rastreo import (
     CELDAS, HAMSTERS, LADOS, BoardManager, CatSpawner,
     HamsterManager, MovementSystem,
@@ -7,6 +11,8 @@ from juego.rastreo import (
     DifficultyManager, GameManager, NIVELES, RONDAS_RASTREO,
     ScoreManager, SelectionManager,
 )
+
+BASE = Path(__file__).parent
 
 def probar_tablero_arranca_con_10_gatos_y_2_hamsters():
     tablero = BoardManager(random.Random(7))
@@ -72,6 +78,21 @@ def probar_puntaje_y_generador_son_deterministas():
     assert len(set(a["final"].values())) == 2
     assert all(m["lado"] in LADOS for m in a["movimientos"])
 
+def probar_rastreo_registrado_como_13a_prueba():
+    assert "rastreo" not in JUEGOS_MINI
+    assert JUEGOS_FIESTA[-2] == "rastreo"
+    assert JUEGOS_FIESTA[-1] == "ppt"
+    assert NOMBRES_JUEGOS["rastreo"] == "RASTREO DE HÁMSTERS"
+
+def probar_rastreo_contrato_cliente():
+    html = (BASE / "static/index.html").read_text(encoding="utf-8")
+    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
+    assert 'data-juego="rastreo"' in html
+    assert '"rastreo"' in js
+    assert ".rastreo-tablero" in css
+    assert "@keyframes rastreo-entrada" in css
+
 def main():
     probar_tablero_arranca_con_10_gatos_y_2_hamsters()
     probar_desplazamientos_en_los_cuatro_lados()
@@ -79,6 +100,8 @@ def main():
     probar_cuatro_niveles_con_parametros_independientes()
     probar_seleccion_exige_dos_casillas_distintas()
     probar_puntaje_y_generador_son_deterministas()
+    probar_rastreo_registrado_como_13a_prueba()
+    probar_rastreo_contrato_cliente()
     print("\nOK - Rastreo de hamsters correcto")
 
 if __name__ == "__main__":

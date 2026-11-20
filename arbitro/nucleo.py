@@ -29,12 +29,13 @@ JUEGOS = ("pajaros", "escritura")
 # aparezca dos veces.
 JUEGOS_FIESTA = ("pajaros", "escritura", "cajas", "operaciones") + tuple(
     j for j in JUEGOS_MINI if j != "ppt"
-) + ("ppt",)
+) + ("rastreo", "ppt")
 NOMBRES_JUEGOS = {
     "pajaros": "HÁMSTERS",
     "escritura": "PALABRAS",
     "cajas": "CAJAS",
     "operaciones": "OPERACIONES",
+    "rastreo": "RASTREO DE HÁMSTERS",
     **NOMBRES_MINI,
 }
 TIEMPO_PODIO = 4.5
@@ -199,7 +200,10 @@ def leer_ajustes_fiesta(juegos, ajustes) -> tuple[list[str], dict[str, dict]]:
         dificultad = dato.get("dificultad")
         limpios[juego] = {
             "rondas": max(1, min(RONDAS_FIESTA_MAX, rondas)),
-            "dificultad": dificultad if dificultad in DIFICULTADES_FIESTA else "facil",
+            "dificultad": dificultad if (
+                dificultad in DIFICULTADES_FIESTA
+                or (juego == "rastreo" and dificultad == "experto")
+            ) else "facil",
         }
     return lista, limpios
 

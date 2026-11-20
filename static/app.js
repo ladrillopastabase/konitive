@@ -52,9 +52,14 @@
     ppt: "PIEDRA · PAPEL · TIJERA",
   };
   // Fiesta: juegos que el anfitrión encadena, con rondas y dificultad propias.
-  const JUEGOS_FIESTA = ["pajaros", "escritura", "cajas", "operaciones", ...JUEGOS_MINI];
+  // «rastreo» es un juego dedicado (no un minijuego) y «ppt» cierra la lista.
+  const JUEGOS_FIESTA = [
+    "pajaros", "escritura", "cajas", "operaciones",
+    ...JUEGOS_MINI.filter((j) => j !== "ppt"), "rastreo", "ppt",
+  ];
   const NOMBRES_FIESTA = {
     pajaros: "HÁMSTERS", escritura: "PALABRAS", cajas: "CAJAS", operaciones: "OPERACIONES",
+    rastreo: "RASTREO DE HÁMSTERS",
     ...NOMBRES_MINI,
   };
   const DIFICULTADES = [["facil", "FÁCIL"], ["normal", "NORMAL"], ["dificil", "DIFÍCIL"]];
@@ -386,7 +391,7 @@
           <button type="button" data-rondas="${juego}" data-delta="1" aria-label="Más rondas" ${activo ? "" : "disabled"}>+</button>
         </div>
         <select data-dificultad="${juego}" aria-label="Dificultad de ${NOMBRES_FIESTA[juego]}" ${activo ? "" : "disabled"}>
-          ${DIFICULTADES.map(([valor, texto]) => `<option value="${valor}" ${valor === dificultad ? "selected" : ""}>${texto}</option>`).join("")}
+          ${(juego === "rastreo" ? [...DIFICULTADES, ["experto", "EXPERTO"]] : DIFICULTADES).map(([valor, texto]) => `<option value="${valor}" ${valor === dificultad ? "selected" : ""}>${texto}</option>`).join("")}
         </select>
       </div>`;
     }).join("");
@@ -893,12 +898,12 @@
         juegoFiesta = msg.juego_fiesta || juegoFiesta;
         mostrar("pantalla-juego");
         actualizarMarcador();
-        if (JUEGOS_MINI.includes(msg.modo)) {
+        if (JUEGOS_MINI.includes(msg.modo) || msg.modo === "rastreo") {
           $("etiqueta-ronda").textContent = "PREPARACIÓN";
-          $("titulo-juego").textContent = NOMBRES_MINI[msg.modo];
+          $("titulo-juego").textContent = NOMBRES_FIESTA[msg.modo];
           $("contenido").innerHTML = `<div class="panel panel-escena">
             <p class="kicker">${secuenciaIndividual ? "INDIVIDUAL" : "FIESTA"} · NUEVA PRUEBA</p>
-            <h2 class="panel-titulo">${escapeHtml(NOMBRES_MINI[msg.modo])}</h2>
+            <h2 class="panel-titulo">${escapeHtml(NOMBRES_FIESTA[msg.modo])}</h2>
             <p class="pista">Prepara la atención. Cada ronda aparecerá enseguida…</p>
           </div>`;
         }
@@ -1793,6 +1798,7 @@
         escritura: "ESCRIBIR PALABRAS",
         cajas: "CONTAR CAJAS",
         operaciones: "OPERACIONES",
+        rastreo: "RASTREO DE HÁMSTERS",
         ...NOMBRES_MINI,
       }[juego] || "KONITIVE"
     );

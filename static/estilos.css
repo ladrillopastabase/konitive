@@ -1184,6 +1184,11 @@ input::placeholder { color: #a39b8c; }
 .ppt-respuesta .ppt-consigna.ppt-ganar { box-shadow: 4px 4px 0 var(--verde); }
 .ppt-respuesta .ppt-consigna.ppt-perder { box-shadow: 4px 4px 0 var(--rojo); }
 
+/* Rastreo de hámsters: selectores reservados; el render real llega después. */
+.rastreo-tablero {}
+.rastreo-casilla {}
+@keyframes rastreo-entrada {}
+
 /* Triángulos: rejilla 5 columnas + rótulo; las flechas unen cada par con su casilla. */
 .triangulo {
   display: grid;
