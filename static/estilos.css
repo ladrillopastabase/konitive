@@ -1117,6 +1117,10 @@ input::placeholder { color: #a39b8c; }
 /* Piedra · Papel · Tijera: ficha de consigna invertida, papel y tinta sin redondez. */
 .ppt-visual { display: flex; flex-direction: column; align-items: center; gap: var(--v-2); width: 100%; }
 .ppt-rival {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--v-1);
   font-family: var(--mono);
   font-size: clamp(13px, 2vh, 17px);
   letter-spacing: .14em;
@@ -1125,12 +1129,19 @@ input::placeholder { color: #a39b8c; }
   border: 2px solid var(--tinta);
   border-radius: 0;
   background: var(--papel-claro);
-  padding: 10px 16px;
+  padding: clamp(10px, 2vh, 18px) clamp(16px, 3vw, 28px);
+  text-align: center;
 }
-.ppt-rival b { font-family: var(--display); color: var(--tinta); letter-spacing: 0; }
+.ppt-rival b {
+  font-family: var(--display);
+  font-size: clamp(46px, min(13vw, 15vh), 100px);
+  line-height: 1;
+  color: var(--tinta);
+  letter-spacing: -.02em;
+}
 .ppt-consigna {
   font-family: var(--display);
-  font-size: clamp(36px, min(11vw, 12vh), 84px);
+  font-size: clamp(26px, min(7vw, 8vh), 52px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -.02em;
@@ -1152,14 +1163,20 @@ input::placeholder { color: #a39b8c; }
   margin-top: var(--v-2);
 }
 .ppt-opcion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 56px;
   border: 2px solid var(--tinta);
   border-radius: 0;
   background: var(--papel-claro);
   color: var(--tinta);
   box-shadow: 4px 4px 0 var(--tinta);
-  font-size: clamp(14px, 2.4vh, 18px);
+  padding: clamp(11px, 1.8vh, 14px) 6px;
+  font-size: clamp(13px, 2vh, 16px);
   font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
 }
 .ppt-opcion:hover:not(:disabled) { background: var(--papel-oscuro); }
 .ppt-opcion:focus-visible { outline: 3px solid var(--rojo); outline-offset: 2px; }
