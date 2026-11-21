@@ -59,7 +59,10 @@ async def bucle_individual(sala: Sala) -> None:
                 "nombre": nombre,
                 "resumen": sala.resultados_individual,
                 "orden": sala.juegos_individual,
-                "total": sum(dato.get("puntos", 0) for dato in sala.resultados_individual.values()),
+                "total": sum(
+                    dato.get("brain_age", 0.0)
+                    for dato in sala.resultados_individual.values()
+                ),
             }
         )
     except asyncio.CancelledError:

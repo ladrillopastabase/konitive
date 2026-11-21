@@ -6,7 +6,7 @@ import time
 
 from juego.cajas import DIFICULTADES, generar_pila
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age_y_puntos
+from arbitro.puntuacion import brain_age
 from arbitro.nucleo import (
     Sala,
     clasificacion,
@@ -30,7 +30,7 @@ TIEMPO_RESPUESTA_CAJAS = 10
 
 def marcador_cajas(
     sala: Sala,
-    puntos: dict[str, int],
+    brain_ages: dict[str, float],
     aciertos: dict[str, int],
     rachas: dict[str, int],
     ronda: int,
@@ -41,7 +41,7 @@ def marcador_cajas(
     return {
         "cajas": {
             pid: {
-                "puntos": puntos.get(pid, 0),
+                "brain_age": round(brain_ages.get(pid, 0.0), 2),
                 "aciertos": aciertos.get(pid, 0),
                 "racha": rachas.get(pid, 0),
                 "ronda": ronda,
@@ -59,14 +59,14 @@ async def bucle_cajas(sala: Sala) -> None:
     """Diez rondas de CAJAS; en fiesta juegan todos los mandos a la vez."""
     jugadores_ = participantes(sala)
     ids = [j.id for j in jugadores_]
-    puntos = {pid: 0 for pid in ids}
+    brain_age_ronda = {pid: 0.0 for pid in ids}
     aciertos = {pid: 0 for pid in ids}
     rachas = {pid: 0 for pid in ids}
     tiempos = {pid: 0.0 for pid in ids}
     errores = {pid: 0 for pid in ids}
     mejor_racha = {pid: 0 for pid in ids}
     anterior: list[list[int]] | None = None
-    sala.ultimos_puntos = {}
+    sala.ultimos_brain_age = {}
     rondas = rondas_para(sala, RONDAS_CAJAS)
     # En fiesta la dificultad fija el punto de partida (FÁCIL/NORMAL/DIFÍCIL).
     dificultad_base = ronda_generador(sala, 0, (0, 1, 2))
@@ -80,7 +80,7 @@ async def bucle_cajas(sala: Sala) -> None:
             {
                 "type": "match_start",
                 "modo": "cajas",
-                "marcador": marcador_cajas(sala, puntos, aciertos, rachas, 0),
+                "marcador": marcador_cajas(sala, brain_age_ronda, aciertos, rachas, 0),
             }
         )
 
@@ -117,7 +117,7 @@ async def bucle_cajas(sala: Sala) -> None:
                     "necesario": rondas,
                     "dificultad": pila["dificultad"],
                     "marcador": marcador_cajas(
-                        sala, puntos, aciertos, rachas, ronda
+                        sala, brain_age_ronda, aciertos, rachas, ronda
                     ),
                 }
             )
@@ -176,14 +176,13 @@ async def bucle_cajas(sala: Sala) -> None:
                     rachas[pid] = 0
                 tiempos[pid] += tiempo
                 errores[pid] += fallo
-                brain, puntos[pid] = brain_age_y_puntos(tiempos[pid], errores[pid])
+                brain_age_ronda[pid] = brain_age(tiempos[pid], errores[pid])
                 por_jugador[pid] = {
                     "elegida": elegida,
                     "acierto": acierto,
                     "tiempo": tiempo,
                     "errores": fallo,
-                    "brain_age": brain,
-                    "puntos": puntos[pid],
+                    "brain_age": brain_age_ronda[pid],
                 }
 
             # Cada mando recibe solo si acertó: nunca el total ni la pila.
@@ -217,7 +216,7 @@ async def bucle_cajas(sala: Sala) -> None:
                     "jugadores": por_jugador,
                     "clasificacion": clasificacion(sala),
                     "marcador": marcador_cajas(
-                        sala, puntos, aciertos, rachas, ronda
+                        sala, brain_age_ronda, aciertos, rachas, ronda
                     ),
                     **principal,
                 },
@@ -228,14 +227,13 @@ async def bucle_cajas(sala: Sala) -> None:
         primero = ids[0] if ids else sala.host_id
         tiempo_total = tiempos.get(primero, 0.0)
         fallos_totales = errores.get(primero, 0)
-        brain_final, puntos_final = brain_age_y_puntos(tiempo_total, fallos_totales)
+        brain_final = brain_age(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
             registrar_resultado_individual(
                 sala,
                 "cajas",
                 {
                     "rondas": rondas,
-                    "puntos": puntos.get(primero, 0),
                     "tiempo_total": tiempo_total,
                     "errores": fallos_totales,
                     "brain_age": brain_final,
@@ -246,11 +244,10 @@ async def bucle_cajas(sala: Sala) -> None:
             return
 
         sala.fase = "fin"
-        sala.ultimos_puntos = dict(puntos)
+        sala.ultimos_brain_age = dict(brain_age_ronda)
         await sala.difundir(
             {
                 "type": "cajas_over",
-                "puntos": puntos_final,
                 "tiempo_total": tiempo_total,
                 "errores": fallos_totales,
                 "brain_age": brain_final,
@@ -260,15 +257,18 @@ async def bucle_cajas(sala: Sala) -> None:
                 "nombre": sala.jugadores[primero].nombre
                 if primero in sala.jugadores
                 else "JUGADOR",
-                "clasificacion": [
-                    {
-                        "id": pid,
-                        "nombre": nombre_de(sala, pid),
-                        "puntos": puntos[pid],
-                        "aciertos": aciertos[pid],
-                    }
-                    for pid in ids
-                ],
+                "clasificacion": sorted(
+                    [
+                        {
+                            "id": pid,
+                            "nombre": nombre_de(sala, pid),
+                            "brain_age": round(brain_age_ronda[pid], 2),
+                            "aciertos": aciertos[pid],
+                        }
+                        for pid in ids
+                    ],
+                    key=lambda fila: (fila["brain_age"], fila["nombre"].casefold()),
+                ),
             }
         )
     except asyncio.CancelledError:

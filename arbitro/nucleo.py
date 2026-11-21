@@ -20,7 +20,7 @@ from juego.reconocedor import Reconocedor, ReconocedorDigitos
 CLAVES_SOLO_PANTALLA = frozenset(
     {
         "marcador", "conteos", "confirmados", "podio", "antes", "despues",
-        "puntos_juego", "tiempo_total", "errores", "brain_age",
+        "brain_age_juego", "tiempo_total", "errores", "brain_age",
     }
 )
 
@@ -89,7 +89,6 @@ class Sala:
     rondas_juego: dict[str, int] = field(default_factory=dict)
     usadas: set[str] = field(default_factory=set)
     anunciados: set[str] = field(default_factory=set)
-    puntos: dict[str, int] = field(default_factory=dict)
     ultimo_juego: str | None = None
     desempate: bool = False
     juego_desempate: str | None = None
@@ -104,9 +103,9 @@ class Sala:
     juego_fiesta: str | None = None
     juegos_fiesta: list[str] = field(default_factory=list)
     ajustes_fiesta: dict[str, dict] = field(default_factory=dict)
-    fiesta_puntos: dict[str, int] = field(default_factory=dict)
+    fiesta_brain_age: dict[str, float] = field(default_factory=dict)
     podium_antes: list[dict] = field(default_factory=list)
-    ultimos_puntos: dict[str, int] = field(default_factory=dict)
+    ultimos_brain_age: dict[str, float] = field(default_factory=dict)
     respuestas: dict[str, tuple[int, float]] = field(default_factory=dict)
     conteos_vivos: dict[str, int] = field(default_factory=dict)
     conteos_confirmados: set[str] = field(default_factory=set)
@@ -127,7 +126,6 @@ class Sala:
         self.rondas_juego = {j: 0 for j in JUEGOS}
         self.usadas = set()
         self.anunciados = set()
-        self.puntos = {}
         self.ultimo_juego = None
         self.desempate = False
         self.juego_desempate = None
@@ -249,11 +247,12 @@ def elegir_juego(sala: Sala) -> str | None:
     return activos[0]
 
 
-def decidir_ganador(puntos: dict[str, int]) -> str | None:
-    if not puntos:
+def decidir_ganador(brain_ages: dict[str, float]) -> str | None:
+    """Gana el menor Brain Age; un empate exacto no tiene ganador."""
+    if not brain_ages:
         return None
-    maximo = max(puntos.values())
-    empatados = [pid for pid, valor in puntos.items() if valor == maximo]
+    minimo = min(brain_ages.values())
+    empatados = [pid for pid, valor in brain_ages.items() if valor == minimo]
     return empatados[0] if len(empatados) == 1 else None
 
 
@@ -413,20 +412,26 @@ def ip_local() -> str:
 
 def clasificacion(sala: Sala) -> list[dict]:
     filas = [
-        {"id": j.id, "nombre": j.nombre, "puntos": sala.fiesta_puntos.get(j.id, 0)}
+        {
+            "id": j.id,
+            "nombre": j.nombre,
+            "brain_age": sala.fiesta_brain_age.get(j.id, 0.0),
+        }
         for j in participantes(sala)
     ]
-    return sorted(filas, key=lambda fila: (-fila["puntos"], fila["nombre"].casefold()))
+    return sorted(
+        filas, key=lambda fila: (fila["brain_age"], fila["nombre"].casefold())
+    )
 
 
-async def enviar_puntos_propios(sala: Sala, filas: list[dict], final: bool) -> None:
+async def enviar_brain_age_propio(sala: Sala, filas: list[dict], final: bool) -> None:
     """Cada mando recibe solo SU acumulado y su puesto, nunca el de los demás."""
     puestos = {fila["id"]: i + 1 for i, fila in enumerate(filas)}
     for jugador in participantes(sala):
         await jugador.enviar(
             {
-                "type": "mis_puntos",
-                "puntos": sala.fiesta_puntos.get(jugador.id, 0),
+                "type": "mi_brain_age",
+                "brain_age": sala.fiesta_brain_age.get(jugador.id, 0.0),
                 "puesto": puestos.get(jugador.id, 0),
                 "total": len(filas),
                 "juego": sala.juego_fiesta,
@@ -440,18 +445,18 @@ async def emitir_podium(
     sala: Sala, final: bool = False, siguiente: str | None = None
 ) -> None:
     """Muestra el podio animado; luego pasa al siguiente juego o vuelve al lobby."""
-    for pid, puntos in sala.ultimos_puntos.items():
-        sala.fiesta_puntos[pid] = sala.fiesta_puntos.get(pid, 0) + puntos
+    for pid, brain in sala.ultimos_brain_age.items():
+        sala.fiesta_brain_age[pid] = sala.fiesta_brain_age.get(pid, 0.0) + brain
     filas = clasificacion(sala)
     antes = sala.podium_antes
-    await enviar_puntos_propios(sala, filas, final)
+    await enviar_brain_age_propio(sala, filas, final)
     await difundir_a_pantalla(
         sala,
         {
             "type": "podium_final" if final else "podium_update",
             "antes": antes,
             "despues": filas,
-            "puntos_juego": dict(sala.ultimos_puntos),
+            "brain_age_juego": dict(sala.ultimos_brain_age),
             "juego": sala.juego_fiesta,
             "nombre_juego": NOMBRES_JUEGOS.get(sala.juego_fiesta or "", ""),
             "siguiente": NOMBRES_JUEGOS.get(siguiente or "", ""),
@@ -473,7 +478,7 @@ async def emitir_podium(
         )
         return
     await pausa(sala, TIEMPO_PODIO)
-    sala.ultimos_puntos = {}
+    sala.ultimos_brain_age = {}
     if siguiente:
         return  # la lista sigue: el orquestador lanza el próximo juego
     sala.fase = "lobby"

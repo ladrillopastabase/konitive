@@ -19,7 +19,7 @@ import websockets
 
 import servidor
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age_y_puntos
+from arbitro.puntuacion import brain_age
 from juego.operaciones import generar_operacion, nivel_para
 
 
@@ -159,11 +159,17 @@ async def jugar_individual() -> None:
     for mensaje in cliente.de_tipo("operacion_result"):
         dato = mensaje["desglose"][yo]
         assert not {"digitos", "bono"} & dato.keys(), dato
-        assert dato["total"] == brain_age_y_puntos(dato["brain_age"], 0)[1]
+        assert dato["brain_age"] >= brain_age(
+            dato["tiempo"], dato["errores"]
+        ) - 0.05, dato
+        assert "total" not in dato, dato
         assert dato["errores"] == 0
         assert dato["automaticas"] == 0
         assert mensaje["resultado"] == resultado_de(mensaje["texto"])
-    assert sobre["puntos"] == brain_age_y_puntos(sobre["brain_age"], 0)[1], sobre
+    assert sobre["brain_age"] == brain_age(
+        sobre["tiempo_total"], sobre["errores"]
+    ), sobre
+    assert "puntos" not in sobre, sobre
 
     await cliente.enviar({"type": "operaciones_restart"})
     reinicio = await cliente.esperar("match_start")
@@ -237,15 +243,15 @@ async def jugar_fiesta() -> None:
             )
             for informe in informes
         ), informes
-        # El podio (con puntos de todos) solo se proyecta en la pantalla.
+        # El podio (con los tiempos de todos) solo se proyecta en la pantalla.
         assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")
 
     podio = await host.esperar("podium_update")
-    puntos = podio["puntos_juego"]
-    assert host_id not in puntos, puntos
-    assert {m[1] for m in mandos}.issubset(puntos), puntos
+    brain_ages = podio["brain_age_juego"]
+    assert host_id not in brain_ages, brain_ages
+    assert {m[1] for m in mandos}.issubset(brain_ages), brain_ages
     assert podio["nombre_juego"] == "OPERACIONES"
-    assert podio["despues"][0]["puntos"] == max(puntos.values())
+    assert podio["despues"][0]["brain_age"] == min(brain_ages.values())
 
     await host.esperar("back_to_selector")
     for mando, _ in mandos:

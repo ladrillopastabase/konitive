@@ -18,7 +18,7 @@ import websockets
 
 import servidor
 from arbitro import cajas, nucleo
-from arbitro.puntuacion import brain_age_y_puntos
+from arbitro.puntuacion import brain_age
 from juego.cajas import DIFICULTADES, contar_visibles, generar_pila, suma_total
 
 
@@ -135,7 +135,10 @@ async def jugar_tanda() -> dict:
                 assert not {"bono", "multiplicador", "racha"} & msg.keys(), msg
                 assert msg["errores"] == 0, msg
                 assert msg["tiempo"] >= 0, msg
-                assert msg["puntos"] == brain_age_y_puntos(msg["brain_age"], 0)[1], msg
+                assert msg["brain_age"] >= brain_age(
+                    msg["tiempo"], msg["errores"]
+                ) - 0.05, msg
+                assert "puntos" not in msg, msg
                 assert sum(sum(fila) for fila in msg["alturas"]) == msg["total"]
 
             elif msg["type"] == "cajas_over":
@@ -248,8 +251,8 @@ async def jugar_fiesta_dos_mandos():
     sobre = host.de_tipo("cajas_over")[0]
     filas = {fila["id"]: fila for fila in sobre["clasificacion"]}
     assert set(filas) == set(ids)
-    assert filas[ids[0]]["puntos"] > filas[ids[1]]["puntos"]
-    assert 0 < filas[ids[1]]["puntos"] < 700, filas[ids[1]]
+    assert filas[ids[0]]["brain_age"] < filas[ids[1]]["brain_age"]
+    assert 0 < filas[ids[1]]["brain_age"] < 700, filas[ids[1]]
 
     await host.esperar("podium_update")
     await asyncio.gather(*(m.cerrar() for m in mandos), host.cerrar())
@@ -273,9 +276,12 @@ async def main():
     assert over["mejor_racha"] == 10, over
     assert over["rondas"] == 10, over
     assert over["errores"] == 0, over
-    assert over["puntos"] == brain_age_y_puntos(over["brain_age"], 0)[1], over
-    assert over["puntos"] == mensajes["cajas_result"][-1]["puntos"], over
-    print("Puntos finales:", over["puntos"])
+    assert over["brain_age"] == brain_age(
+        over["tiempo_total"], over["errores"]
+    ), over
+    assert over["brain_age"] == mensajes["cajas_result"][-1]["brain_age"], over
+    assert "puntos" not in over, over
+    print("Brain Age final:", over["brain_age"])
 
     await asyncio.sleep(0.1)
     assert not servidor.salas, f"Quedaron salas abiertas: {list(servidor.salas)}"

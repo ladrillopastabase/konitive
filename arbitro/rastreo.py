@@ -6,7 +6,7 @@ import time
 
 from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager, nivel_para_ronda
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age_y_puntos
+from arbitro.puntuacion import brain_age
 from arbitro.nucleo import (
     Jugador,
     Sala,
@@ -33,16 +33,14 @@ def resumen_rastreo_individual(sala: Sala) -> dict:
     aciertos = datos.get("aciertos", 0)
     errores = datos.get("errores", 0)
     tiempo = datos.get("tiempo", 0.0)
-    brain, puntos = brain_age_y_puntos(tiempo, errores)
     return {
         "rondas": rondas,
         "aciertos": aciertos,
         "errores": errores,
-        "brain_age": round(brain, 2),
+        "brain_age": round(brain_age(tiempo, errores), 2),
         "precision": round(100 * aciertos / (2 * rondas), 1) if rondas else 0.0,
         "tiempo_promedio": round(tiempo / rondas, 2) if rondas else 0.0,
         "tiempo_total": round(tiempo, 2),
-        "puntos": puntos,
     }
 
 
@@ -104,8 +102,8 @@ async def bucle_rastreo(sala: Sala) -> None:
     tiempos = {pid: 0.0 for pid in ids}
     fallos = {pid: 0 for pid in ids}
     aciertos = {pid: 0 for pid in ids}
-    puntos = {pid: 0 for pid in ids}
-    sala.ultimos_puntos = {}
+    brain_age_ronda = {pid: 0.0 for pid in ids}
+    sala.ultimos_brain_age = {}
     rondas = rondas_para(sala, RONDAS_RASTREO)
     dificultad_base = ajuste_actual(sala).get("dificultad", "facil")
     sala.datos = {
@@ -254,15 +252,14 @@ async def bucle_rastreo(sala: Sala) -> None:
                 aciertos[pid] += acierto_ronda
                 fallos[pid] += evaluacion["errores"]
                 tiempos[pid] += tiempo
-                brain, puntos[pid] = brain_age_y_puntos(tiempos[pid], fallos[pid])
+                brain_age_ronda[pid] = brain_age(tiempos[pid], fallos[pid])
                 por_jugador[pid] = {
                     "seleccion": list(seleccion),
                     "aciertos": acierto_ronda,
                     "errores": evaluacion["errores"],
                     "precision": evaluacion["precision"],
                     "tiempo": round(tiempo, 2),
-                    "brain_age": round(brain, 2),
-                    "puntos": puntos[pid],
+                    "brain_age": round(brain_age_ronda[pid], 2),
                 }
 
             datos_principal = por_jugador.get(principal, {})
@@ -301,7 +298,7 @@ async def bucle_rastreo(sala: Sala) -> None:
             return
 
         sala.fase = "fin"
-        sala.ultimos_puntos = dict(puntos)
+        sala.ultimos_brain_age = dict(brain_age_ronda)
         await difundir_roles(
             sala,
             {
@@ -311,10 +308,7 @@ async def bucle_rastreo(sala: Sala) -> None:
                     {
                         "id": pid,
                         "nombre": nombre_de(sala, pid),
-                        "puntos": puntos[pid],
-                        "brain_age": round(
-                            brain_age_y_puntos(tiempos[pid], fallos[pid])[0], 2
-                        ),
+                        "brain_age": round(brain_age_ronda[pid], 2),
                     }
                     for pid in ids
                 ],

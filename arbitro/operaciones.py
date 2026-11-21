@@ -6,7 +6,7 @@ import time
 
 from juego.operaciones import generar_operacion
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age_y_puntos, fallos_escritura
+from arbitro.puntuacion import brain_age, fallos_escritura
 from arbitro.nucleo import (
     Sala,
     TIEMPO_CUENTA_PREVIA,
@@ -30,13 +30,14 @@ TIEMPO_ESPERA_OPERACIONES = 60
 
 
 def marcador_operaciones(
-    sala: Sala, puntos: dict[str, int], ronda: int
+    sala: Sala, brain_ages: dict[str, float], ronda: int
 ) -> dict:
     ids = [j.id for j in participantes(sala)]
     primero = ids[0] if ids else sala.host_id
     return {
         "operaciones": {
-            pid: {"puntos": puntos.get(pid, 0), "ronda": ronda} for pid in ids
+            pid: {"brain_age": round(brain_ages.get(pid, 0.0), 2), "ronda": ronda}
+            for pid in ids
         },
         "nombre": sala.jugadores[primero].nombre
         if primero in sala.jugadores
@@ -49,11 +50,11 @@ async def bucle_operaciones(sala: Sala) -> None:
     """Diez operaciones; en fiesta todos los mandos escriben a la vez."""
     jugadores_ = participantes(sala)
     ids = [j.id for j in jugadores_]
-    puntos = {pid: 0 for pid in ids}
+    brain_age_ronda = {pid: 0.0 for pid in ids}
     tiempos = {pid: 0.0 for pid in ids}
     errores = {pid: 0 for pid in ids}
     anterior: str | None = None
-    sala.ultimos_puntos = {}
+    sala.ultimos_brain_age = {}
     rondas = rondas_para(sala, RONDAS_OPERACIONES)
 
     try:
@@ -65,7 +66,7 @@ async def bucle_operaciones(sala: Sala) -> None:
             {
                 "type": "match_start",
                 "modo": "operaciones",
-                "marcador": marcador_operaciones(sala, puntos, 0),
+                "marcador": marcador_operaciones(sala, brain_age_ronda, 0),
             }
         )
 
@@ -89,7 +90,7 @@ async def bucle_operaciones(sala: Sala) -> None:
                 jugador.progreso = {
                     "resultado": operacion["resultado"],
                     "digitos": [
-                        {"intentos": 0, "puntos": 0, "estado": "pendiente", "motivo": ""}
+                        {"intentos": 0, "estado": "pendiente", "motivo": ""}
                         for _ in operacion["resultado"]
                     ],
                     "inicio": None,
@@ -111,7 +112,7 @@ async def bucle_operaciones(sala: Sala) -> None:
                     "ronda": ronda,
                     "necesario": rondas,
                     "dificultad": operacion["dificultad"],
-                    "marcador": marcador_operaciones(sala, puntos, ronda),
+                    "marcador": marcador_operaciones(sala, brain_age_ronda, ronda),
                 }
             )
             await nucleo.pausa(sala, TIEMPO_CUENTA_PREVIA)
@@ -147,7 +148,7 @@ async def bucle_operaciones(sala: Sala) -> None:
                 {
                     "type": "operacion_write",
                     "ronda": ronda,
-                    "marcador": marcador_operaciones(sala, puntos, ronda),
+                    "marcador": marcador_operaciones(sala, brain_age_ronda, ronda),
                 }
             )
             await esperar(sala, sala.evento_escritura, TIEMPO_ESPERA_OPERACIONES)
@@ -174,14 +175,11 @@ async def bucle_operaciones(sala: Sala) -> None:
                 pid = jugador.id
                 tiempos[pid] += tiempo
                 errores[pid] += fallos
-                brain, puntos[pid] = brain_age_y_puntos(
-                    tiempos[pid], errores[pid]
-                )
+                brain_age_ronda[pid] = brain_age(tiempos[pid], errores[pid])
                 desglose[pid] = {
                     "tiempo": tiempo,
                     "errores": fallos,
-                    "brain_age": brain,
-                    "total": puntos[pid],
+                    "brain_age": brain_age_ronda[pid],
                     "correctas": correctas,
                     "automaticas": automaticas,
                 }
@@ -199,7 +197,7 @@ async def bucle_operaciones(sala: Sala) -> None:
                     "dificultad": operacion["dificultad"],
                     "desglose": desglose,
                     "clasificacion": clasificacion(sala),
-                    "marcador": marcador_operaciones(sala, puntos, ronda),
+                    "marcador": marcador_operaciones(sala, brain_age_ronda, ronda),
                 },
                 {"type": "operacion_result", "ronda": ronda},
             )
@@ -208,14 +206,13 @@ async def bucle_operaciones(sala: Sala) -> None:
         primero = ids[0] if ids else sala.host_id
         tiempo_total = tiempos.get(primero, 0.0)
         fallos_totales = errores.get(primero, 0)
-        brain_final, puntos_final = brain_age_y_puntos(tiempo_total, fallos_totales)
+        brain_final = brain_age(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
             registrar_resultado_individual(
                 sala,
                 "operaciones",
                 {
                     "rondas": rondas,
-                    "puntos": puntos.get(primero, 0),
                     "tiempo_total": tiempo_total,
                     "errores": fallos_totales,
                     "brain_age": brain_final,
@@ -224,11 +221,10 @@ async def bucle_operaciones(sala: Sala) -> None:
             return
 
         sala.fase = "fin"
-        sala.ultimos_puntos = dict(puntos)
+        sala.ultimos_brain_age = dict(brain_age_ronda)
         await sala.difundir(
             {
                 "type": "operacion_over",
-                "puntos": puntos_final,
                 "tiempo_total": tiempo_total,
                 "errores": fallos_totales,
                 "brain_age": brain_final,
@@ -236,10 +232,17 @@ async def bucle_operaciones(sala: Sala) -> None:
                 "nombre": sala.jugadores[primero].nombre
                 if primero in sala.jugadores
                 else "JUGADOR",
-                "clasificacion": [
-                    {"id": pid, "nombre": nombre_de(sala, pid), "puntos": puntos[pid]}
-                    for pid in ids
-                ],
+                "clasificacion": sorted(
+                    [
+                        {
+                            "id": pid,
+                            "nombre": nombre_de(sala, pid),
+                            "brain_age": round(brain_age_ronda[pid], 2),
+                        }
+                        for pid in ids
+                    ],
+                    key=lambda fila: (fila["brain_age"], fila["nombre"].casefold()),
+                ),
             }
         )
     except asyncio.CancelledError:

@@ -8,9 +8,9 @@ import asyncio
 import contextlib
 import time
 
-from arbitro import clasico
-from arbitro.nucleo import Jugador, Sala
-from arbitro.puntuacion import brain_age_y_puntos, fallos_escritura, sumar_historial
+from arbitro import clasico, nucleo
+from arbitro.nucleo import Jugador, Sala, decidir_ganador
+from arbitro.puntuacion import brain_age, fallos_escritura, sumar_brain_age
 
 
 async def _sin_pausa(*_args, **_kwargs) -> None:
@@ -39,12 +39,30 @@ def _con_pausas_desactivadas(esperar):
         clasico.esperar = esperar_original
 
 
+def probar_formula_solo_tiempo() -> None:
+    """El resultado es segundos: tiempo + 5 s por error, sin escala invertida."""
+    from arbitro import puntuacion
+
+    assert hasattr(puntuacion, "brain_age"), "falta la función brain_age"
+    assert puntuacion.brain_age(7.0, 3) == 22.0
+    assert puntuacion.brain_age(12.0, 0) == 12.0
+    assert puntuacion.sumar_brain_age(
+        [{"pid": "yo", "tiempo": 2.0, "errores": 1}], "yo", 3.0, 0
+    ) == 10.0
+    assert not hasattr(puntuacion, "PUNTOS_POR_SEGUNDO")
+
+
+def probar_empate_brain_age_no_tiene_ganador() -> None:
+    """Dos tiempos iguales no deben dar un ganador arbitrario."""
+    assert decidir_ganador({"a": 12.0, "b": 12.0}) is None
+    assert decidir_ganador({"a": 12.0, "b": 17.0}) == "a"
+
+
 def probar_formula_brain_age() -> None:
-    assert brain_age_y_puntos(0.0, 0) == (0.0, 1000)
-    assert brain_age_y_puntos(10.0, 0) == (10.0, 900)
-    assert brain_age_y_puntos(10.0, 2) == (20.0, 800), "5 s por error"
-    assert brain_age_y_puntos(2.0, 1) == (7.0, 930)
-    assert brain_age_y_puntos(200.0, 0)[1] == 0, "los puntos no bajan de cero"
+    assert brain_age(0.0, 0) == 0.0
+    assert brain_age(10.0, 0) == 10.0
+    assert brain_age(10.0, 2) == 20.0, "5 s por error"
+    assert brain_age(2.0, 1) == 7.0
 
 
 def probar_fallos_escritura() -> None:
@@ -56,20 +74,19 @@ def probar_fallos_escritura() -> None:
     assert fallos_escritura(casillas) == 4, "0 + 1 + 3 rechazos"
     assert fallos_escritura(casillas, incompleto=True) == 5
     assert fallos_escritura([{"estado": "pendiente", "intentos": 2}]) == 2
-    assert brain_age_y_puntos(4.0, 4) == (24.0, 760), "5 s por error"
+    assert brain_age(4.0, 4) == 24.0, "5 s por error"
 
 
-def probar_sumar_historial() -> None:
+def probar_sumar_brain_age() -> None:
     historial = [
         {
             "tiempo": {"yo": 2.0, "otro": 4.0},
             "errores": {"yo": 1, "otro": 0},
-            "puntos": {"yo": 0, "otro": 0},
         }
     ]
-    assert sumar_historial(historial, "yo", 3.0, 0) == (10.0, 900), historial
-    assert sumar_historial(historial, "otro", 1.0, 1) == (10.0, 900), historial
-    assert sumar_historial([], "yo", 0.5, 0) == (0.5, 995)
+    assert sumar_brain_age(historial, "yo", 3.0, 0) == 10.0, historial
+    assert sumar_brain_age(historial, "otro", 1.0, 1) == 10.0, historial
+    assert sumar_brain_age([], "yo", 0.5, 0) == 0.5
 
 
 async def _esperar_respuesta_pajaros(sala, _evento, _segundos, instante) -> None:
@@ -85,20 +102,21 @@ async def probar_ronda_pajaros_usa_tiempo_y_errores() -> None:
     async def esperar_correcta(sala_, evento, segundos):
         await _esperar_respuesta_pajaros(sala_, evento, segundos, sala_.datos["momento_respuesta"] + 2.0)
     with _con_pausas_desactivadas(esperar_correcta):
-        puntos = await clasico.ronda_pajaros(sala, 1)
-    assert puntos["yo"] == 980, (puntos, sala.datos)
+        tiempos = await clasico.ronda_pajaros(sala, 1)
+    assert tiempos["yo"] == 2.0, (tiempos, sala.datos)
     assert sala.datos["tiempo"]["yo"] == 2.0
     assert sala.datos["errores"]["yo"] == 0
     assert sala.datos["brain_age"]["yo"] == 2.0
-    assert sala.datos["desglose"]["yo"]["total"] == 980
+    assert sala.datos["desglose"]["yo"]["brain_age"] == 2.0
+    assert "total" not in sala.datos["desglose"]["yo"]
 
     sala = _sala_clasica("pajaros")
     async def esperar_mal(sala_, evento, segundos):
         await _esperar_respuesta_pajaros(sala_, evento, segundos, sala_.datos["momento_respuesta"] + 2.0)
         sala_.respuestas["yo"] = (sala_.datos["esperado"] + 1, sala_.datos["momento_respuesta"] + 2.0)
     with _con_pausas_desactivadas(esperar_mal):
-        puntos = await clasico.ronda_pajaros(sala, 1)
-    assert puntos["yo"] == 930, puntos
+        tiempos = await clasico.ronda_pajaros(sala, 1)
+    assert tiempos["yo"] == 7.0, tiempos
     assert sala.datos["errores"]["yo"] == 1
     assert sala.datos["brain_age"]["yo"] == 7.0
 
@@ -106,23 +124,23 @@ async def probar_ronda_pajaros_usa_tiempo_y_errores() -> None:
 async def probar_ronda_pajaros_sin_respuesta_cuenta_error() -> None:
     sala = _sala_clasica("pajaros")
     with _con_pausas_desactivadas(_esperar_sin_respuesta_pajaros):
-        puntos = await clasico.ronda_pajaros(sala, 1)
-    esperado = brain_age_y_puntos(clasico.TIEMPO_ESPERA_RESPUESTA, 1)[1]
-    assert puntos["yo"] == esperado, (puntos, esperado)
+        tiempos = await clasico.ronda_pajaros(sala, 1)
+    esperado = brain_age(clasico.TIEMPO_ESPERA_RESPUESTA, 1)
+    assert tiempos["yo"] == esperado, (tiempos, esperado)
     assert sala.datos["tiempo"]["yo"] == clasico.TIEMPO_ESPERA_RESPUESTA
     assert sala.datos["errores"]["yo"] == 1
 
 
 async def probar_ronda_pajaros_acumula_entre_rondas() -> None:
     historial = [{
-        "tiempo": {"yo": 2.0}, "errores": {"yo": 0}, "puntos": {"yo": 980},
+        "tiempo": {"yo": 2.0}, "errores": {"yo": 0}, "brain_age": {"yo": 2.0},
     }]
     sala = _sala_clasica("pajaros", historial=historial)
     async def esperar_correcta(sala_, evento, segundos):
         await _esperar_respuesta_pajaros(sala_, evento, segundos, sala_.datos["momento_respuesta"] + 3.0)
     with _con_pausas_desactivadas(esperar_correcta):
-        puntos = await clasico.ronda_pajaros(sala, 1)
-    assert puntos["yo"] == brain_age_y_puntos(5.0, 0)[1], (puntos, sala.datos)
+        tiempos = await clasico.ronda_pajaros(sala, 1)
+    assert tiempos["yo"] == brain_age(5.0, 0) == 5.0, (tiempos, sala.datos)
     assert sala.datos["brain_age"]["yo"] == 5.0
 
 
@@ -145,9 +163,9 @@ async def probar_ronda_escritura_suma_intentos_fallidos() -> None:
         jugador = sala_.jugadores["yo"]
         _progreso_palabra(jugador, jugador.progreso["inicio"] + 4.0, [1, 2, 3])
     with _con_pausas_desactivadas(esperar_escritura):
-        puntos = await clasico.ronda_escritura(sala, 1)
+        tiempos = await clasico.ronda_escritura(sala, 1)
     # 0 rechazos + 1 rechazo + 3 rechazos (aceptación automática) = 4 errores
-    assert puntos["yo"] == brain_age_y_puntos(4.0, 4)[1], (puntos, sala.datos["desglose"])
+    assert tiempos["yo"] == brain_age(4.0, 4) == 24.0, (tiempos, sala.datos["desglose"])
     desglose = sala.datos["desglose"]["yo"]
     assert desglose["errores"] == 4 and desglose["tiempo"] == 4.0
 
@@ -157,17 +175,17 @@ async def probar_ronda_escritura_sin_respuesta() -> None:
     async def esperar_nada(_sala, _evento, _segundos):
         return None
     with _con_pausas_desactivadas(esperar_nada):
-        puntos = await clasico.ronda_escritura(sala, 1)
-    esperado = brain_age_y_puntos(clasico.TIEMPO_ESPERA_ESCRITURA, 1)[1]
-    assert puntos["yo"] == esperado, (puntos, esperado)
+        tiempos = await clasico.ronda_escritura(sala, 1)
+    esperado = brain_age(clasico.TIEMPO_ESPERA_ESCRITURA, 1)
+    assert tiempos["yo"] == esperado, (tiempos, esperado)
 
 
 def probar_resumen_clasico_no_suma_puntos_acumulados() -> None:
     """El informe final usa el Brain Age acumulado, no la suma de parciales."""
     historial = [
-        {"tiempo": {"yo": 2.0}, "errores": {"yo": 0}, "puntos": {"yo": 980}},
-        {"tiempo": {"yo": 4.0}, "errores": {"yo": 0}, "puntos": {"yo": 960}},
-        {"tiempo": {"yo": 6.0}, "errores": {"yo": 0}, "puntos": {"yo": 940}},
+        {"tiempo": {"yo": 2.0}, "errores": {"yo": 0}, "brain_age": {"yo": 2.0}},
+        {"tiempo": {"yo": 4.0}, "errores": {"yo": 0}, "brain_age": {"yo": 4.0}},
+        {"tiempo": {"yo": 6.0}, "errores": {"yo": 0}, "brain_age": {"yo": 6.0}},
     ]
     sala = _sala_clasica("pajaros", historial=historial)
     sala.rondas_juego["pajaros"] = 3
@@ -175,8 +193,8 @@ def probar_resumen_clasico_no_suma_puntos_acumulados() -> None:
     resumen = clasico.resumen_clasico_individual(sala, "pajaros")
     assert resumen["tiempo_total"] == 12.0, resumen
     assert resumen["brain_age"] == 12.0, resumen
-    assert resumen["puntos"] == 880 and resumen["total"] == 880, resumen
-    assert resumen["mejor"] == 980, resumen
+    assert resumen["mejor"] == 2.0, resumen
+    assert "puntos" not in resumen and "total" not in resumen, resumen
 
 
 async def probar_escritura_sin_respuesta_no_cuenta_letras_correctas() -> None:
@@ -214,7 +232,6 @@ async def probar_difusion_fiesta_oculta_metricas_de_desglose() -> None:
     await sala.difundir(
         {
             "type": "cajas_over",
-            "puntos": 495,
             "tiempo_total": 12.0,
             "errores": 2,
             "brain_age": 22.0,
@@ -226,10 +243,59 @@ async def probar_difusion_fiesta_oculta_metricas_de_desglose() -> None:
     assert not {"tiempo_total", "errores", "brain_age"} & ws_mando.enviados[0].keys()
 
 
+def probar_sin_api_antigua_de_puntos() -> None:
+    """No queda la inversión 0–1000 ni ningún alias del contrato viejo."""
+    from arbitro import puntuacion
+
+    for nombre in (
+        "brain_age_y_puntos",
+        "sumar_historial",
+        "PUNTOS_BASE",
+        "PUNTOS_POR_SEGUNDO",
+    ):
+        assert not hasattr(puntuacion, nombre), nombre
+
+
+def _sin_clave_puntos(valor, ruta: str) -> None:
+    if isinstance(valor, dict):
+        for clave, hijo in valor.items():
+            assert clave != "puntos", (ruta, clave)
+            _sin_clave_puntos(hijo, f"{ruta}.{clave}")
+    elif isinstance(valor, (list, tuple)):
+        for indice, hijo in enumerate(valor):
+            _sin_clave_puntos(hijo, f"{ruta}[{indice}]")
+
+
+async def probar_mensajes_finales_sin_puntos() -> None:
+    """Ningún informe final arrastra la clave de puntos de la escala vieja."""
+    sala = _sala_clasica("pajaros")
+    ws = _WsFalso()
+    sala.jugadores["yo"].ws = ws
+    await clasico.terminar_partida(sala, "yo")
+    assert len(ws.enviados) == 1, ws.enviados
+    _sin_clave_puntos(ws.enviados[0], "match_over")
+
+    sala = Sala(codigo="FIEST", host_id="pantalla", modo="fiesta", capacidad=2)
+    ws_pantalla, ws_mando = _WsFalso(), _WsFalso()
+    sala.jugadores["pantalla"] = Jugador(
+        id="pantalla", nombre="PANTALLA", ws=ws_pantalla, rol="pantalla"
+    )
+    sala.jugadores["mando"] = Jugador(
+        id="mando", nombre="MANDO", ws=ws_mando, rol="mando"
+    )
+    sala.juego_fiesta = "pajaros"
+    sala.ultimos_brain_age = {"mando": 12.0}
+    await nucleo.emitir_podium(sala, final=True)
+    for mensaje in ws_pantalla.enviados + ws_mando.enviados:
+        _sin_clave_puntos(mensaje, mensaje.get("type", "?"))
+
+
 def main() -> None:
+    probar_formula_solo_tiempo()
     probar_formula_brain_age()
+    probar_empate_brain_age_no_tiene_ganador()
     probar_fallos_escritura()
-    probar_sumar_historial()
+    probar_sumar_brain_age()
     asyncio.run(probar_ronda_pajaros_usa_tiempo_y_errores())
     asyncio.run(probar_ronda_pajaros_sin_respuesta_cuenta_error())
     asyncio.run(probar_ronda_pajaros_acumula_entre_rondas())
@@ -238,6 +304,8 @@ def main() -> None:
     probar_resumen_clasico_no_suma_puntos_acumulados()
     asyncio.run(probar_escritura_sin_respuesta_no_cuenta_letras_correctas())
     asyncio.run(probar_difusion_fiesta_oculta_metricas_de_desglose())
+    probar_sin_api_antigua_de_puntos()
+    asyncio.run(probar_mensajes_finales_sin_puntos())
     print("OK - Fórmula Brain Age compartida y clásicos")
 
 

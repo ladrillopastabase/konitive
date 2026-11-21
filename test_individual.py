@@ -2,7 +2,7 @@
 
 Verifica que los juegos elegidos se jueguen en orden canónico, uno detrás de
 otro, sin mensajes finales intermedios, y que al terminar se entregue un
-resumen conjunto con los puntos de todas las pruebas.
+resumen conjunto con el Brain Age de todas las pruebas.
 
 Los reconocedores se parchean para poder «escribir» letras y cifras, y las
 pausas se acortan, igual que en el resto de las pruebas.
@@ -193,7 +193,7 @@ async def secuencia_completa() -> None:
     assert resumen["resumen"]["operaciones"]["rondas"] == 10
     assert resumen["resumen"]["pajaros"]["victorias"] == 3
     assert resumen["resumen"]["escritura"]["victorias"] == 3
-    total = sum(dato.get("puntos", 0) for dato in resumen["resumen"].values())
+    total = sum(dato.get("brain_age", 0) for dato in resumen["resumen"].values())
     assert resumen["total"] == total and total > 0, resumen
 
     assert len(cliente.de_tipo("cajas_result")) == 10

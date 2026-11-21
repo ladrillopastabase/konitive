@@ -21,7 +21,7 @@
   let juegoFiesta = null;
   let inviteUrl = "";
   let podioActual = [];
-  let misPuntos = null;
+  let miBrainAge = null;
   let ultimaPila = [];
   let animacion = null;
   let cuentaTimer = null;
@@ -308,17 +308,22 @@
     avisoTimer = setTimeout(() => el.classList.remove("visible"), 2800);
   }
 
+  function mejorBrainAge(clave) {
+    const valor = Number(localStorage.getItem(clave));
+    return Number.isFinite(valor) && valor > 0 ? valor : Infinity;
+  }
+
   function actualizarRecordCajas() {
-    const record = Number(localStorage.getItem("konitive_cajas_record") || 0);
-    $("record-cajas").textContent = record
-      ? `MEJOR MARCA EN CAJAS: ${record} PUNTOS`
+    const record = mejorBrainAge("konitive_cajas_record_brain_age");
+    $("record-cajas").textContent = Number.isFinite(record)
+      ? `MEJOR BRAIN AGE EN CAJAS: ${record} · MENOR ES MEJOR`
       : "";
   }
 
   function actualizarRecordOperaciones() {
-    const record = Number(localStorage.getItem("konitive_operaciones_record") || 0);
-    $("record-operaciones").textContent = record
-      ? `MEJOR MARCA EN OPERACIONES: ${record} PUNTOS`
+    const record = mejorBrainAge("konitive_operaciones_record_brain_age");
+    $("record-operaciones").textContent = Number.isFinite(record)
+      ? `MEJOR BRAIN AGE EN OPERACIONES: ${record} · MENOR ES MEJOR`
       : "";
   }
 
@@ -846,11 +851,11 @@
       // El celular solo ve lo suyo: nunca el marcador de los otros mandos.
       const bruto = (marcador[juegoFiesta] || {})[yoId];
       const dato = bruto && typeof bruto === "object" ? bruto : {};
-      const puntos = misPuntos?.puntos ?? dato.puntos ?? bruto ?? 0;
+      const brainAge = miBrainAge?.brain_age ?? dato.brain_age ?? 0;
       const ronda = dato.ronda ?? (juegoFiesta === "pajaros" ? rondaClasica : 0);
       $("marcador-0").innerHTML =
         `<div class="nombre">${nombreHtml(jugadores[yoId] || "TÚ", " · TÚ")}</div>` +
-        `<div class="detalle">PUNTOS <b>${puntos}</b></div>`;
+        `<div class="detalle">BRAIN AGE <b>${brainAge}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${ronda}</div>` +
         `<div class="detalle">ACIERTOS <b>${dato.aciertos ?? 0}</b></div>`;
@@ -863,7 +868,7 @@
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
         `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
-        `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
+        `<div class="detalle">BRAIN AGE <b>${dato.brain_age ?? 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
         `<div class="detalle">ACIERTOS <b>${dato.aciertos || 0}</b> · RACHA <b>${dato.racha || 0}</b>` +
@@ -877,7 +882,7 @@
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
         `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
-        `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
+        `<div class="detalle">BRAIN AGE <b>${dato.brain_age ?? 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
         `<div class="detalle">${ids.length} JUGADOR(ES)</div>`;
@@ -891,7 +896,7 @@
       const nombre = jugadores[id] || marcador.nombre || "JUGADOR";
       $("marcador-0").innerHTML =
         `<div class="nombre">${nombreHtml(nombre, id === yoId ? " (tú)" : "")}</div>` +
-        `<div class="detalle">PUNTOS <b>${dato.puntos || 0}</b></div>`;
+        `<div class="detalle">BRAIN AGE <b>${dato.brain_age ?? 0}</b></div>`;
       $("marcador-1").innerHTML =
         `<div class="nombre">RONDA ${dato.ronda || 0} / ${marcador.necesario || 10}</div>` +
         `<div class="detalle">${ids.length} JUGADOR(ES)</div>`;
@@ -1336,9 +1341,9 @@
         mostrarPodio(msg);
         break;
 
-      case "mis_puntos":
+      case "mi_brain_age":
         if (!esMandoFiesta()) break;
-        misPuntos = msg;
+        miBrainAge = msg;
         actualizarMarcador();
         break;
 
@@ -1355,7 +1360,7 @@
         modoCajas = false;
         modoOperaciones = false;
         juegoFiesta = null;
-        misPuntos = null;
+        miBrainAge = null;
         if (msg.jugadores) jugadores = msg.jugadores;
         if (msg.host) hostId = msg.host;
         if (esMandoFiesta()) {
@@ -1989,9 +1994,9 @@
     }
     const filas = (msg.clasificacion || [])
       .map((fila) => `<div class="puntaje ${fila.id === yoId ? "propio" : ""}">
-        <div class="numero">${fila.brain_age ?? fila.puntos ?? 0}</div>
+        <div class="numero">${fila.brain_age ?? 0}</div>
         <div class="quien">${nombreHtml(fila.nombre)}</div>
-        <div class="desglose">${fila.brain_age != null ? "PUNTAJE BRAIN AGE" : "PUNTOS"}</div>
+        <div class="desglose">BRAIN AGE · MENOR ES MEJOR</div>
       </div>`)
       .join("");
     $("contenido").innerHTML = `<div class="panel resultado">
@@ -2000,7 +2005,7 @@
         <h2>TU ENTRENAMIENTO</h2>
       </div>
       <div class="puntajes">
-        <div class="puntaje"><div class="numero">${msg.brain_age ?? 0}</div><div class="quien">PUNTAJE BRAIN AGE · MENOR ES MEJOR</div></div>
+        <div class="puntaje"><div class="numero">${msg.brain_age ?? 0}</div><div class="quien">BRAIN AGE · MENOR ES MEJOR</div></div>
         <div class="puntaje"><div class="numero">${msg.precision ?? 0}%</div><div class="quien">PRECISIÓN</div></div>
         <div class="puntaje"><div class="numero">${msg.tiempo_promedio ?? 0} s</div><div class="quien">TIEMPO PROMEDIO POR RONDA</div></div>
       </div>
@@ -2173,9 +2178,9 @@
     detenerTimers();
     const filas = (msg.clasificacion || [])
       .map((fila) => `<div class="puntaje ${fila.id === yoId ? "propio" : ""}">
-        <div class="numero">${fila.brain_age ?? fila.puntos ?? 0}</div>
+        <div class="numero">${fila.brain_age ?? 0}</div>
         <div class="quien">${nombreHtml(fila.nombre)}</div>
-        <div class="desglose">${fila.brain_age != null ? "BRAIN AGE · MENOR ES MEJOR" : "PUNTOS"}</div>
+        <div class="desglose">BRAIN AGE · MENOR ES MEJOR</div>
       </div>`)
       .join("");
     $("contenido").innerHTML = `<div class="panel resultado">
@@ -2929,9 +2934,9 @@
       </div>
       <div class="puntajes" style="width:100%">
         <div class="puntaje ${acierto ? "ganador" : ""}">
-          <div class="numero">${propio.puntos ?? 0}</div>
+          <div class="numero">${propio.brain_age ?? 0}</div>
           <div class="desglose">${detalle}</div>
-          <div class="quien">PUNTOS ACUMULADOS</div>
+          <div class="quien">BRAIN AGE ACUMULADO · MENOR ES MEJOR</div>
         </div>
       </div>
       ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
@@ -2942,21 +2947,22 @@
 
   function mostrarFinalCajas(msg) {
     detenerTimers();
-    const anterior = Number(localStorage.getItem("konitive_cajas_record") || 0);
-    const nuevoRecord = msg.puntos > anterior;
-    if (nuevoRecord) localStorage.setItem("konitive_cajas_record", String(msg.puntos));
+    const anterior = mejorBrainAge("konitive_cajas_record_brain_age");
+    const brainAge = msg.brain_age ?? 0;
+    const nuevoRecord = brainAge < anterior;
+    if (nuevoRecord) localStorage.setItem("konitive_cajas_record_brain_age", String(brainAge));
     actualizarRecordCajas();
 
     $("contenido").innerHTML = `<div class="panel diploma">
       <div class="sello-grande">K</div>
       <p class="kicker">INFORME FINAL · CUENTA CAJAS</p>
-      <b>${msg.puntos} PUNTOS</b>
+      <b>${brainAge} BRAIN AGE · MENOR ES MEJOR</b>
       <p class="pista">${escapeHtml(msg.nombre)}, acertaste ${msg.aciertos} de ${msg.rondas} rondas. Mejor racha: ${msg.mejor_racha}.</p>
       <p class="pista">${textoDesglose(msg)}</p>
       <div class="puntajes" style="text-align:left">
         <div class="puntaje"><div class="numero">${msg.aciertos}/${msg.rondas}</div><div class="quien">ACIERTOS</div></div>
         <div class="puntaje"><div class="numero">${msg.mejor_racha}</div><div class="quien">MEJOR RACHA</div></div>
-        <div class="puntaje"><div class="numero">${Math.max(anterior, msg.puntos)}</div><div class="quien">${nuevoRecord ? "¡NUEVO RÉCORD!" : "RÉCORD"}</div></div>
+        <div class="puntaje"><div class="numero">${Math.min(anterior, brainAge)}</div><div class="quien">${nuevoRecord ? "¡NUEVO RÉCORD!" : "RÉCORD"} · MENOR ES MEJOR</div></div>
       </div>
       <div class="diploma-acciones">
         <button class="boton oscuro chico" id="btn-otra-cajas">OTRA TANDA</button>
@@ -3036,7 +3042,6 @@
         tiempo: 0,
         errores: 0,
         brain_age: 0,
-        total: 0,
         correctas: 0,
         automaticas: 0,
       };
@@ -3053,9 +3058,9 @@
       </div>
       <div class="puntajes" style="width:100%">
         <div class="puntaje">
-          <div class="numero">${propio.total}</div>
+          <div class="numero">${propio.brain_age ?? 0}</div>
           <div class="desglose">${detalle}</div>
-          <div class="quien">PUNTOS ACUMULADOS</div>
+          <div class="quien">BRAIN AGE ACUMULADO · MENOR ES MEJOR</div>
         </div>
       </div>
       ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
@@ -3065,24 +3070,24 @@
   function mostrarFinalOperaciones(msg) {
     detenerTimers();
     const filas = msg.clasificacion || [
-      { id: yoId, nombre: msg.nombre, puntos: msg.puntos },
+      { id: yoId, nombre: msg.nombre, brain_age: msg.brain_age ?? 0 },
     ];
     const propia = filas.find((fila) => fila.id === yoId) || filas[0] || {};
-    const puntos = propia.puntos || 0;
-    const anterior = Number(localStorage.getItem("konitive_operaciones_record") || 0);
-    const nuevoRecord = puntos > anterior;
-    if (nuevoRecord) localStorage.setItem("konitive_operaciones_record", String(puntos));
+    const brainAge = propia.brain_age ?? msg.brain_age ?? 0;
+    const anterior = mejorBrainAge("konitive_operaciones_record_brain_age");
+    const nuevoRecord = brainAge < anterior;
+    if (nuevoRecord) localStorage.setItem("konitive_operaciones_record_brain_age", String(brainAge));
     actualizarRecordOperaciones();
 
     $("contenido").innerHTML = `<div class="panel diploma">
       <div class="sello-grande">K</div>
       <p class="kicker">INFORME FINAL · OPERACIONES MATEMÁTICAS</p>
-      <b>${puntos} PUNTOS</b>
+      <b>${brainAge} BRAIN AGE · MENOR ES MEJOR</b>
       <p class="pista">${escapeHtml(propia.nombre || msg.nombre || "JUGADOR")}, completaste ${msg.rondas} operaciones.</p>
       <p class="pista">${textoDesglose(msg)}</p>
       <div class="puntajes" style="text-align:left">
         <div class="puntaje"><div class="numero">${msg.rondas}</div><div class="quien">OPERACIONES</div></div>
-        <div class="puntaje"><div class="numero">${Math.max(anterior, puntos)}</div><div class="quien">${nuevoRecord ? "¡NUEVO RÉCORD!" : "RÉCORD"}</div></div>
+        <div class="puntaje"><div class="numero">${Math.min(anterior, brainAge)}</div><div class="quien">${nuevoRecord ? "¡NUEVO RÉCORD!" : "RÉCORD"} · MENOR ES MEJOR</div></div>
       </div>
       ${filas.length > 1 ? tablaClasificacion(filas) : ""}
       <div class="diploma-acciones">
@@ -3106,7 +3111,7 @@
         (fila, i) =>
           `<div class="fila"><span class="puesto">${i + 1}.</span>` +
           `<span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === resaltarId ? " · TÚ" : "")}</span>` +
-          `<span class="puntos">${fila.puntos ?? 0}</span></div>`
+          `<span class="puntos">${fila.brain_age ?? 0}</span></div>`
       )
       .join("")}</div>`;
   }
@@ -3122,7 +3127,7 @@
     const final = msg.type === "podium_final";
     podioActual = msg.despues || [];
     const antes = msg.antes || [];
-    const puntosJuego = msg.puntos_juego || {};
+    const brainAgeJuego = msg.brain_age_juego || {};
     const puestoAnterior = {};
     antes.forEach((fila, i) => (puestoAnterior[fila.id] = i));
 
@@ -3144,14 +3149,14 @@
         const movimiento =
           delta === null ? "NUEVO" : delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : "—";
         const claseMov = delta > 0 ? "subio" : delta < 0 ? "bajo" : "";
-        const ganado = puntosJuego[fila.id]
-          ? ` <span class="ganado">+${puntosJuego[fila.id]}</span>`
+        const ganado = brainAgeJuego[fila.id]
+          ? ` <span class="ganado">+${brainAgeJuego[fila.id]} s</span>`
           : "";
         return `<div class="fila-podio ${i === 0 ? "top1" : ""}" data-id="${fila.id}">
           <span class="puesto">${i + 1}</span>
           <span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === yoId ? " · TÚ" : "")}${ganado}</span>
           <span class="movimiento ${claseMov}">${movimiento}</span>
-          <span class="puntos">${fila.puntos ?? 0}</span>
+          <span class="puntos">${fila.brain_age ?? 0}</span>
         </div>`;
       })
       .join("");
@@ -3205,7 +3210,7 @@
           `<div class="fila-podio ${i === 0 ? "top1" : ""}" data-id="${fila.id}">` +
           `<span class="puesto">${i + 1}</span>` +
           `<span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === yoId ? " · TÚ" : "")}</span>` +
-          `<span class="puntos">${fila.puntos ?? 0}</span></div>`
+          `<span class="puntos">${fila.brain_age ?? 0}</span></div>`
       )
       .join("");
     $("podio-pie").innerHTML =
@@ -3224,7 +3229,7 @@
     modoOperaciones = false;
     juegoFiesta = null;
     marcador = { pajaros: {}, escritura: {}, necesario: 3 };
-    misPuntos = null;
+    miBrainAge = null;
     pintarPodiosLobby();
     actualizarLobby();
     if (esPantalla) {
@@ -3238,7 +3243,7 @@
   }
 
   /* ---------- Resultados ---------- */
-  function cajasPuntajes(puntos, ganador, desglose, juego) {
+  function cajasPuntajes(brainAges, ganador, desglose, juego) {
     return Object.keys(marcador.pajaros || {})
       .map((id) => {
         const gana = id === ganador && !modoPractica;
@@ -3248,7 +3253,7 @@
             ? `<div class="desglose">${textoDesglose(dato)}</div>`
             : "";
         return `<div class="puntaje ${gana ? "ganador" : ""}">
-          <div class="numero">${puntos[id] ?? 0}</div>
+          <div class="numero">${brainAges[id] ?? 0}</div>
           ${detalle}
           <div class="quien">${nombreHtml(jugadores[id] || "JUGADOR", id === yoId ? " · TÚ" : "")}</div>
         </div>`;
@@ -3286,7 +3291,7 @@
         ${ganador ? '<div class="sello-resultado">GANADOR</div>' : ""}
       </div>
       ${protagonista}
-      <div class="puntajes">${cajasPuntajes(msg.puntos || {}, ganador, msg.desglose || {}, msg.juego)}</div>
+      <div class="puntajes">${cajasPuntajes(msg.brain_age || {}, ganador, msg.desglose || {}, msg.juego)}</div>
       <p class="resultado-pie">HÁMSTERS ${msg.marcador.pajaros[yoId] || 0} · PALABRAS ${msg.marcador.escritura[yoId] || 0}</p>
     </div>`;
   }
@@ -3304,7 +3309,7 @@
         return `<div class="puntaje">
           <div class="numero">${dato.victorias ?? 0}</div>
           <div class="quien">${titulo} · VICTORIAS</div>
-          <div class="desglose">RONDAS ${dato.rondas ?? 0} · MEJOR ${dato.mejor ?? 0} · TOTAL ${dato.total ?? 0}</div>
+          <div class="desglose">RONDAS ${dato.rondas ?? 0} · MEJOR ${dato.mejor ?? 0} · BRAIN AGE ${dato.brain_age ?? 0}</div>
           ${dato.brain_age != null ? `<div class="desglose">${textoDesglose(dato)}</div>` : ""}
         </div>`;
       })
@@ -3353,9 +3358,9 @@
           : `VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}` +
             (dato.brain_age != null ? ` · ${textoDesglose(dato)}` : "");
         return `<div class="puntaje">
-          <div class="numero">${dato.puntos ?? 0}</div>
+          <div class="numero">${dato.brain_age ?? 0}</div>
           <div class="desglose">${detalle}</div>
-          <div class="quien">${nombres[clave] || clave.toUpperCase()}</div>
+          <div class="quien">${nombres[clave] || clave.toUpperCase()} · MENOR ES MEJOR</div>
         </div>`;
       })
       .join("");
@@ -3369,7 +3374,7 @@
       <div class="puntajes">${tarjetas}</div>
       <div class="puntaje" style="margin-top:10px">
         <div class="numero">${msg.total ?? 0}</div>
-        <div class="quien">PUNTOS TOTALES</div>
+        <div class="quien">BRAIN AGE TOTAL · MENOR ES MEJOR</div>
       </div>
       <div class="diploma-acciones">
         <button class="boton oscuro chico" id="btn-otra-individual">REPETIR</button>

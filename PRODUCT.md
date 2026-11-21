@@ -17,7 +17,7 @@ No hay un único público asignado; ambos usos son parte del producto.
 
 ## Product Purpose
 
-Juego de entrenamiento cerebral inspirado en los minijuegos del Dr. Kawashima. Reúne 13 pruebas de atención, memoria, escritura y cálculo. El éxito es completar las pruebas elegidas y ver el propio progreso: resumen final con puntos por prueba en INDIVIDUAL, podio acumulado entre juegos y podio final en FIESTA.
+Juego de entrenamiento cerebral inspirado en los minijuegos del Dr. Kawashima. Reúne 13 pruebas de atención, memoria, escritura y cálculo. El éxito es completar las pruebas elegidas y ver el propio progreso: resumen final con el Brain Age de cada prueba en INDIVIDUAL, podio acumulado entre juegos y podio final en FIESTA.
 
 ## Positioning
 
@@ -39,7 +39,7 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 - Modos: duelo **ABRIR SALA / UNIRSE** (PÁJAROS y PALABRAS, mejor de 3 victorias por juego), **INDIVIDUAL** (de 1 a 13 pruebas en orden fijo con informe final) y **FIESTA** (los 13 juegos, podio entre juegos y podio final).
 - Juegos clásicos: **PÁJAROS**, **PALABRAS**, **CAJAS** (tanda de 10 rondas) y **OPERACIONES** (tanda de 10 rondas).
 - Nueve minijuegos: **STROOP**, **TRIÁNGULOS**, **RELOJES**, **MENOR A MAYOR**, **MEMORIA**, **DAR VUELTO**, **SÍLABAS**, **RASTREO DE HÁMSTERS** y **PIEDRA · PAPEL · TIJERA**.
-- Puntuación de las 13 pruebas: Brain Age = `tiempo total + 5 s por error` (menor es mejor); cada intento fallido cuenta, y sin respuesta se suma el límite de tiempo y un error. En el podio y los informes se invierte a `max(0, 1000 − brain_age × 10)` para mantener el orden de mayor a menor. El desglose muestra `tiempo / errores / brain_age`; no hay base, bonus ni multiplicadores.
+- Puntuación de las 13 pruebas: Brain Age = `tiempo total + 5 s por error`, en segundos y menor es mejor; cada intento fallido cuenta, y sin respuesta se suma el límite de tiempo y un error. Es el único número de resultados e informes, también en el podio, que ordena de menor a mayor; no hay escala 0–1000, base, bonus ni multiplicadores. El desglose muestra `tiempo / errores / brain_age`.
 - En FIESTA la pantalla no entra al podio. No se envían a los mandos las aves, la palabra, la pila de cajas, el enunciado de la operación, la grilla de MEMORIA ni ninguna respuesta correcta. El informe de cada ronda se muestra solo en la pantalla; el mando solo espera la siguiente.
 - Si un mando se desconecta, la partida sigue; si se desconecta la pantalla, la partida se cancela.
 - Reconocedores EMNIST (26 letras) y MNIST (10 dígitos) incluidos en `juego/modelos/`. No requieren descarga.

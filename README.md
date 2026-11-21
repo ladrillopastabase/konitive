@@ -101,9 +101,9 @@ pruebas: los cuatro juegos clásicos y los nueve minijuegos de entrenamiento:
   PAPEL · TIJERA (solo las marcadas). Antes de cada una se ve una pantalla
   «JUEGO 2 / 13» con su nombre.
 - Al terminar la última aparece un **informe final** con una tarjeta por prueba
-  (puntos y detalle), la suma total y botones de **REPETIR** (misma selección) y
-  **VOLVER AL INICIO**. Durante la secuencia no aparecen los informes
-  intermedios de cada juego.
+  (Brain Age y desglose), la suma total de Brain Age y botones de **REPETIR**
+  (misma selección) y **VOLVER AL INICIO**. Durante la secuencia no aparecen los
+  informes intermedios de cada juego.
 
 Cada prueba conserva su mecánica de siempre, pero comparte una única forma de
 puntuar:
@@ -111,9 +111,10 @@ puntuar:
 ### PUNTUACIÓN DE LAS 13 PRUEBAS
 
 Todas —clásicos, CAJAS, OPERACIONES, RASTREO y los nueve minijuegos— usan el
-**Brain Age**: `tiempo total + 5 segundos por error` (menor es mejor). Para el
-podio se invierte a `puntos = max(0, 1000 − brain_age × 10)`, con escala común
-0–1000. Si no se responde a tiempo se cuenta el límite completo y **un error**;
+**Brain Age**: `tiempo total + 5 segundos por error`, en segundos y menor es
+mejor; no hay escala invertida ni puntos. El podio ordena de menor a mayor
+Brain Age, que es el tiempo acumulado con penalizaciones. Si no se responde a
+tiempo se cuenta el límite completo y **un error**;
 en PALABRAS y OPERACIONES cada carácter rechazado cuenta como un error (tres
 rechazos seguidos = aceptación automática = 15 s). El desglose siempre muestra
 `TIEMPO / ERRORES / BRAIN AGE`; no hay base, bonus de rapidez ni multiplicadores.
@@ -143,9 +144,9 @@ que ninguna caja flota.
   responde con el contador de pájaros: **−** y **+**, flechas arriba/abajo (o
   izquierda/derecha) y **CONFIRMAR CUENTA** (tecla **Enter**).
 - La racha sigue subiendo la dificultad cada 3 aciertos, pero ya no multiplica
-  puntos. El resultado vuelve a mostrar la pila **tal como se vio**, sin
+  el resultado. El resultado vuelve a mostrar la pila **tal como se vio**, sin
   transparencias, junto al desglose `TIEMPO / ERRORES / BRAIN AGE`.
-- La mejor marca se guarda en `localStorage` (`konitive_cajas_record`).
+- La mejor marca se guarda en `localStorage` (`konitive_cajas_record_brain_age`).
 
 ### OPERACIONES
 
@@ -162,7 +163,7 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
 - Cada cifra rechazada suma 5 segundos al Brain Age; tres rechazos seguidos
   bastan para que se acepte sola. El informe de cada ronda muestra
   `TIEMPO / ERRORES / BRAIN AGE`.
-- La mejor marca se guarda en `localStorage` (`konitive_operaciones_record`).
+- La mejor marca se guarda en `localStorage` (`konitive_operaciones_record_brain_age`).
 
 ## LOS NUEVE MINIJUEGOS
 
@@ -171,10 +172,10 @@ respuesta correcta, cronometra y valida; el celular solo muestra y envía. El
 feedback es **verde** al acertar y **rosa** al fallar, tanto en la pantalla como
 en el mando.
 
-Igual que el resto de pruebas, puntúan con el **Brain Age** descrito arriba.
+Igual que el resto de pruebas, se miden con el **Brain Age** descrito arriba.
 El informe final muestra además la **precisión** y el **tiempo promedio por
-ronda**. En el podio de FIESTA se invierte a puntos altos para que el orden
-siga siendo de mayor a menor.
+ronda**. En el podio de FIESTA gana quien acumula el menor Brain Age, y cada
+mando ve solo su propio tiempo.
 
 ### STROOP
 
@@ -274,8 +275,8 @@ los cuatro clásicos y los nueve minijuegos anteriores.
   solo se actualiza la lista de conectados; si se va la pantalla, la partida se
   cancela.
 - Después de cada juego se muestra un **podio animado**: las filas se reordenan
-  con una transición y se indica cuántos puestos sube o baja cada jugador y los
-  puntos ganados en ese juego. El podio es acumulado de toda la fiesta.
+  con una transición y se indica cuántos puestos sube o baja cada jugador y el
+  Brain Age de ese juego. El podio acumula el Brain Age de toda la fiesta.
 - Tras el podio se vuelve al selector y el anfitrión elige el siguiente juego.
   **TERMINAR FIESTA** muestra el **podio final** con los campeones.
 
@@ -309,17 +310,16 @@ los cuatro clásicos y los nueve minijuegos anteriores.
   mínimo (nunca saltan todos). El número se elige con los botones **− / +** o
   con las **flechas arriba/abajo**; no hay campo de texto. Durante la respuesta
   se ve en vivo la cuenta de ambos jugadores y quién ya confirmó. El resultado
-  muestra el total en grande. Puntos por acierto más bonus por rapidez; si se
-  acaba el tiempo sin confirmar, se usa el último número visible sin bonus.
+  muestra el total en grande; el Brain Age suma el tiempo de la ronda y 5 s si
+  el conteo es erróneo o no se confirmó a tiempo.
 - **Escritura**: cuenta atrás de 3 segundos; después la palabra **aparece apenas
   0,8 segundos** y desaparece. Recién entonces se escribe de memoria. El cliente
   no recibe la palabra ni cuántas letras faltan: solo muestra las letras ya
   confirmadas, sin casillas vacías. Misma palabra para ambos (español sin
-  tildes/ñ e inglés), con longitud creciente 3 → 8. Puntos por letra: 30 a la
-  primera, 20 en intentos posteriores y 10 si se acepta automáticamente tras
-  3 fallos. Si se completa la palabra se suma un bonus de rapidez de hasta
-  50 puntos (5 menos por segundo). El informe de cada ronda muestra el desglose
-  `letras + rapidez = total`.
+  tildes/ñ e inglés), con longitud creciente 3 → 8. Cada letra rechazada suma
+  5 segundos al Brain Age; tres rechazos seguidos la aceptan automáticamente.
+  Sin respuesta se cuenta el plazo completo y un error. El informe de cada
+  ronda muestra el desglose `TIEMPO / ERRORES / BRAIN AGE`.
 - Empate en una ronda → se juega otra con la dificultad subida un nivel.
 - 1–1 en los minijuegos → ronda de desempate de un juego elegido al azar.
 

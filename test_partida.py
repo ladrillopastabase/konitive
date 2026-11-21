@@ -26,7 +26,7 @@ import websockets
 
 import servidor
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age_y_puntos
+from arbitro.puntuacion import brain_age
 from juego.palabras import LONGITUDES_POR_NIVEL, PALABRAS
 
 
@@ -84,7 +84,7 @@ def validar_mensaje(msg: dict) -> None:
         assert set(msg["resumen"]) == {"pajaros", "escritura"}, msg
         for dato in msg["resumen"].values():
             assert set(dato) == {
-                "rondas", "victorias", "mejor", "total",
+                "rondas", "victorias", "mejor",
                 "tiempo_total", "errores", "brain_age",
             }, dato
     if tipo == "birds_show":
@@ -95,12 +95,12 @@ def validar_mensaje(msg: dict) -> None:
         assert not all(ave["salta"] for ave in msg["aves"]), "Nunca saltan todos"
     if tipo == "round_result" and msg["juego"] == "escritura":
         desglose = msg["desglose"]
-        for pid, total in msg["puntos"].items():
+        for pid, total in msg["brain_age"].items():
             dato = desglose[pid]
             # `brain_age` acumula las rondas previas; el tiempo de esta ronda no.
-            calculado = brain_age_y_puntos(dato["brain_age"], 0)[1]
+            calculado = brain_age(dato["brain_age"], 0)
             assert calculado == total, (dato, total)
-            assert dato["total"] == total, (dato, total)
+            assert dato["brain_age"] == total, (dato, total)
             assert (
                 dato["correctas"] + dato["automaticas"] >= 0
             ), dato

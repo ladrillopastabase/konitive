@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -33,6 +34,61 @@ while not servidor_uvicorn.started:
 
 URL = "ws://127.0.0.1:8772/ws"
 SECRETOS = ("alturas", "total", "visibles", "esperado", "aves", "jugadores", "despues")
+RAIZ = Path(__file__).resolve().parent
+
+CODIGO_CLIENTE = r"""
+const fs = require('fs');
+const js = fs.readFileSync('static/app.js', 'utf8');
+const prohibidas = [
+  'PUNTOS TOTALES', '<b>${msg.puntos} PUNTOS</b>', 'case "mis_puntos"',
+  '"konitive_cajas_record"', '"konitive_operaciones_record"',
+  'msg.puntos > anterior', 'fila.puntos'
+];
+for (const texto of prohibidas) {
+  if (js.includes(texto)) throw new Error('Queda código de puntos: ' + texto);
+}
+const necesarias = [
+  'konitive_cajas_record_brain_age', 'konitive_operaciones_record_brain_age',
+  'case "mi_brain_age"', 'brain_age_juego', 'BRAIN AGE · MENOR ES MEJOR'
+];
+for (const texto of necesarias) {
+  if (!js.includes(texto)) throw new Error('Falta el contrato de tiempo: ' + texto);
+}
+const funcion = js.match(/function mejorBrainAge\(clave\) \{[\s\S]*?\n  \}/);
+if (!funcion) throw new Error('Falta la lectura del récord con clave nueva');
+const mejor = new Function(
+  'localStorage', funcion[0] + '; return mejorBrainAge;'
+)({ getItem: (clave) => ({ konitive_cajas_record: '980' })[clave] ?? null });
+if (mejor('konitive_cajas_record_brain_age') !== Infinity) {
+  throw new Error('Un valor de la escala antigua se compara como Brain Age');
+}
+const anteriorConRécord = new Function(
+  'localStorage', funcion[0] + '; return mejorBrainAge;'
+)({ getItem: () => '22' });
+const coincidencias = [...js.matchAll(/const nuevoRecord = ([^;]+);/g)];
+if (coincidencias.length < 2) throw new Error('Faltan las dos comparaciones de récord');
+for (const [, expresion] of coincidencias.slice(0, 2)) {
+  const compara = new Function('brainAge', 'anterior', 'return ' + expresion + ';');
+  if (compara(22, Infinity) !== true) throw new Error('Sin récord previo debe haber récord');
+  if (compara(30, 22) !== false) throw new Error('Un Brain Age mayor no debe batir récord');
+}
+if (anteriorConRécord('konitive_cajas_record_brain_age') !== 22) {
+  throw new Error('Un Brain Age guardado no se lee como récord');
+}
+process.stdout.write('OK');
+"""
+
+
+def probar_cliente_solo_tiempo() -> None:
+    resultado = subprocess.run(
+        ["node", "-e", CODIGO_CLIENTE],
+        cwd=RAIZ,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert resultado.stdout == "OK", resultado.stdout
 
 
 class Cliente:
@@ -77,6 +133,7 @@ async def conectar(mensaje):
 
 
 async def main():
+    probar_cliente_solo_tiempo()
     host = await conectar({"type": "fiesta", "nombre": "Pantalla"})
     codigo = (await host.esperar("room_created"))["codigo"]
     mandos = [

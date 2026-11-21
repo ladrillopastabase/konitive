@@ -21,7 +21,8 @@ import websockets
 import servidor
 import arbitro.minijuegos as mini_arbitro
 from arbitro import nucleo
-from arbitro.minijuegos import brain_age_y_puntos, exposicion_stroop
+from arbitro.minijuegos import exposicion_stroop
+from arbitro.puntuacion import brain_age
 from juego.minijuegos import (
     JUEGOS_MINI,
     NOMBRES_MINI,
@@ -369,8 +370,8 @@ async def jugar_fiesta(juego: str) -> None:
     assert all("reto" in r for r in resultados_pantalla), resultados_pantalla
 
     podio = await host.esperar("podium_update")
-    assert host_id not in podio["puntos_juego"], podio
-    assert set(podio["puntos_juego"]) == ids_mandos, podio
+    assert host_id not in podio["brain_age_juego"], podio
+    assert set(podio["brain_age_juego"]) == ids_mandos, podio
     await host.esperar("back_to_selector")
     for mando in mandos:
         await mando.esperar("back_to_selector")
@@ -445,8 +446,9 @@ async def jugar_individual_sin_responder() -> None:
         resumen = await cliente.esperar("individual_summary", timeout=20)
         dato = resumen["resumen"][juego]
         assert dato["errores"] == RONDAS_MINI[juego], dato
-        sin_errores = brain_age_y_puntos(dato["tiempo_total"], 0)[1]
-        assert dato["puntos"] < sin_errores, (dato, sin_errores)
+        penalizado = brain_age(dato["tiempo_total"], dato["errores"])
+        assert dato["brain_age"] >= penalizado - 0.05, (dato, penalizado)
+        assert "puntos" not in dato, dato
     finally:
         mini_arbitro.TIEMPO_RESPUESTA_MINI[juego] = plazo_original
         await cliente.cerrar()
@@ -456,8 +458,8 @@ async def jugar_individual_sin_responder() -> None:
 
 
 async def main() -> None:
-    assert brain_age_y_puntos(10.0, 0) == (10.0, 900)
-    assert brain_age_y_puntos(10.0, 2) == (20.0, 800), "5 s por error"
+    assert brain_age(10.0, 0) == 10.0
+    assert brain_age(10.0, 2) == 20.0, "5 s por error"
     print("Individual:")
     for juego in JUEGOS_MINI:
         await jugar_individual(juego)
