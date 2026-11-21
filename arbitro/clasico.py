@@ -8,6 +8,7 @@ import uuid
 
 from juego.palabras import palabra_para
 from arbitro import nucleo
+from arbitro.puntuacion import brain_age_y_puntos, fallos_escritura, sumar_historial
 from arbitro.nucleo import (
     JUEGOS,
     Jugador,
@@ -43,8 +44,6 @@ TIEMPO_ESPERA_RESPUESTA = 25
 TIEMPO_ESPERA_ESCRITURA = 120
 TIEMPO_FLASH_PALABRA = 0.8
 PUNTOS_LETRA = {"primera": 30, "posterior": 20, "automatica": 10}
-BONO_MAXIMO = 50
-BONO_POR_SEGUNDO = 5
 PUNTOS_DIGITO = {"primera": 30, "posterior": 20, "automatica": 10}
 
 
@@ -170,28 +169,37 @@ async def ronda_pajaros(sala: Sala, nivel: int) -> dict[str, int]:
     )
     await esperar(sala, sala.evento_respuestas, TIEMPO_ESPERA_RESPUESTA)
 
-    # Si alguien no confirmó a tiempo, se usa el último número que tenía en
-    # pantalla, pero sin bonus de rapidez.
     momento = sala.datos["momento_respuesta"]
-    for pid, conteo in sala.conteos_vivos.items():
-        if pid not in sala.respuestas:
-            sala.respuestas[pid] = (conteo, momento + TIEMPO_ESPERA_RESPUESTA + 1)
-
+    tiempos: dict[str, float] = {}
+    errores: dict[str, int] = {}
+    brains: dict[str, float] = {}
     puntos: dict[str, int] = {}
+    desglose: dict[str, dict] = {}
     for jugador in participantes(sala):
         pid = jugador.id
         respuesta = sala.respuestas.get(pid)
         if respuesta is None:
-            puntos[pid] = 0
-            continue
-        conteo, instante = respuesta
-        if conteo != sala.datos["esperado"]:
-            puntos[pid] = 0
-            continue
-        tardanza = instante - sala.datos["momento_respuesta"]
-        # Bono de rapidez: 10 puntos menos por segundo (llega a 0 a los 10 s),
-        # así una décima de diferencia sigue desempatando el duelo.
-        puntos[pid] = 100 + max(0, 100 - int(tardanza * 10))
+            tiempo = float(TIEMPO_ESPERA_RESPUESTA)
+            fallos = 1
+        else:
+            conteo, instante = respuesta
+            tiempo = max(0.0, instante - momento)
+            fallos = 0 if conteo == sala.datos["esperado"] else 1
+        brain, puntos[pid] = sumar_historial(
+            sala.historial.get("pajaros", []), pid, tiempo, fallos
+        )
+        tiempos[pid] = tiempo
+        errores[pid] = fallos
+        brains[pid] = brain
+        desglose[pid] = {
+            "tiempo": tiempo,
+            "errores": fallos,
+            "brain_age": brain,
+            "total": puntos[pid],
+        }
+    sala.datos.update(
+        {"tiempo": tiempos, "errores": errores, "brain_age": brains, "desglose": desglose}
+    )
     return puntos
 
 
@@ -278,55 +286,80 @@ async def ronda_escritura(sala: Sala, nivel: int) -> dict[str, int]:
 
     puntos: dict[str, int] = {}
     desglose: dict[str, dict] = {}
+    tiempos: dict[str, float] = {}
+    errores: dict[str, int] = {}
+    brains: dict[str, float] = {}
     for jugador in participantes(sala):
         progreso = jugador.progreso
         if not progreso or progreso.get("inicio") is None:
-            puntos[jugador.id] = 0
-            desglose[jugador.id] = {
-                "letras": 0,
-                "bono": 0,
-                "total": 0,
-                "correctas": 0,
-                "automaticas": 0,
-            }
-            continue
+            tiempo = float(TIEMPO_ESPERA_ESCRITURA)
+            fallos = 1
+            correctas = 0
+            automaticas = 0
+        else:
+            fin = progreso.get("fin")
+            tiempo = (
+                max(0.0, fin - progreso["inicio"])
+                if fin is not None
+                else float(TIEMPO_ESPERA_ESCRITURA)
+            )
+            fallos = fallos_escritura(progreso["letras"], incompleto=fin is None)
+            correctas = sum(
+                1 for letra in progreso["letras"] if letra["motivo"] != "automatica"
+            )
+            automaticas = sum(
+                1 for letra in progreso["letras"] if letra["motivo"] == "automatica"
+            )
 
-        base = sum(letra["puntos"] for letra in progreso["letras"])
-        correctas = sum(
-            1 for letra in progreso["letras"] if letra["motivo"] != "automatica"
+        pid = jugador.id
+        brain, puntos[pid] = sumar_historial(
+            sala.historial.get("escritura", []), pid, tiempo, fallos
         )
-        automaticas = sum(
-            1 for letra in progreso["letras"] if letra["motivo"] == "automatica"
-        )
-        bono = 0
-        if progreso["fin"] is not None:
-            tardanza = max(0.0, progreso["fin"] - progreso["inicio"])
-            bono = max(0, BONO_MAXIMO - int(tardanza * BONO_POR_SEGUNDO))
-
-        total = base + bono
-        puntos[jugador.id] = total
-        desglose[jugador.id] = {
-            "letras": base,
-            "bono": bono,
-            "total": total,
+        tiempos[pid] = tiempo
+        errores[pid] = fallos
+        brains[pid] = brain
+        desglose[pid] = {
+            "tiempo": tiempo,
+            "errores": fallos,
+            "brain_age": brain,
+            "total": puntos[pid],
             "correctas": correctas,
             "automaticas": automaticas,
         }
 
-    sala.datos["desglose"] = desglose
+    sala.datos.update(
+        {"tiempo": tiempos, "errores": errores, "brain_age": brains, "desglose": desglose}
+    )
     return puntos
+
+
+def _brain_age_acumulado(sala: Sala, juego: str, pid: str) -> tuple[float, int, float]:
+    tiempo = sum(
+        entrada.get("tiempo", {}).get(pid, 0.0)
+        for entrada in sala.historial.get(juego, [])
+    )
+    errores = sum(
+        entrada.get("errores", {}).get(pid, 0)
+        for entrada in sala.historial.get(juego, [])
+    )
+    brain, _ = brain_age_y_puntos(tiempo, errores)
+    return tiempo, errores, brain
 
 
 def resumen_clasico_individual(sala: Sala, juego: str) -> dict:
     """Resultado de HÁMSTERS o PALABRAS dentro de la secuencia individual."""
     pid = next(iter(sala.jugadores), sala.host_id)
     puntos = [entrada["puntos"].get(pid, 0) for entrada in sala.historial[juego]]
+    tiempo, errores, brain = _brain_age_acumulado(sala, juego, pid)
     return {
         "rondas": sala.rondas_juego[juego],
         "victorias": sala.ganadas[juego].get(pid, 0),
         "mejor": max(puntos, default=0),
         "total": sum(puntos),
         "puntos": sum(puntos),
+        "tiempo_total": tiempo,
+        "errores": errores,
+        "brain_age": brain,
     }
 
 
@@ -338,11 +371,15 @@ async def enviar_resumen_practica(sala: Sala) -> None:
         puntos = [
             entrada["puntos"].get(pid, 0) for entrada in sala.historial[juego]
         ]
+        tiempo, errores, brain = _brain_age_acumulado(sala, juego, pid)
         resumen[juego] = {
             "rondas": sala.rondas_juego[juego],
             "victorias": sala.ganadas[juego].get(pid, 0),
             "mejor": max(puntos, default=0),
             "total": sum(puntos),
+            "tiempo_total": tiempo,
+            "errores": errores,
+            "brain_age": brain,
         }
 
     sala.fase = "resumen"
@@ -449,6 +486,9 @@ async def bucle_partida(sala: Sala) -> None:
                 {
                     "nivel": nivel,
                     "puntos": dict(puntos),
+                    "tiempo": dict(sala.datos.get("tiempo", {})),
+                    "errores": dict(sala.datos.get("errores", {})),
+                    "brain_age": dict(sala.datos.get("brain_age", {})),
                     "esperado": sala.datos.get("esperado"),
                     "palabra": sala.datos.get("palabra"),
                     "ganador": ganador,
@@ -460,7 +500,7 @@ async def bucle_partida(sala: Sala) -> None:
             desglose_ronda = sala.datos.get("desglose", {})
             for jugador in participantes(sala):
                 if juego == "pajaros":
-                    acepta = puntos.get(jugador.id, 0) > 0
+                    acepta = sala.datos.get("errores", {}).get(jugador.id, 1) == 0
                 else:
                     acepta = desglose_ronda.get(jugador.id, {}).get("correctas", 0) > 0
                 await jugador.enviar(

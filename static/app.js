@@ -432,6 +432,39 @@
     mostrar("pantalla-individual");
   });
 
+  const DESCRIPCIONES_JUEGOS = {
+    pajaros: ["HÁMSTERS", "Cuenta los hámsters en cuanto aparecen y confirma el total: agudizas la atención de Conita para no perder detalle."],
+    escritura: ["PALABRAS", "Memoriza la palabra que parpadea y escríbela letra a letra: fortaleces la memoria de Conita y su precisión."],
+    cajas: ["CAJAS", "Cuenta todas las cajas de la pila, también las que quedan escondidas: entrenas la visión espacial de Conita."],
+    operaciones: ["OPERACIONES", "Recuerda la operación apenas un instante y escribe el resultado cifra a cifra: ejercitas la memoria de trabajo y el cálculo de Conita."],
+    stroop: ["STROOP", "Nombra el color de la tinta, no lo que dice la palabra: ayudas a Conita a ignorar distracciones y responder más rápido."],
+    triangulos: ["TRIÁNGULOS", "Resuelve mentalmente las operaciones de la fila y escribe el resultado final: estimulas el cálculo de Conita."],
+    relojes: ["RELOJES", "Calcula cuánto tiempo pasó entre dos relojes y escribe horas y minutos: afinas la noción del tiempo de Conita."],
+    menor: ["MENOR A MAYOR", "Toca los números en orden ascendente: mejoras la atención selectiva y la rapidez de decisión de Conita."],
+    memoria: ["MEMORIA", "Memoriza la grilla y toca las casillas en orden: amplías la capacidad de memoria de Conita."],
+    vuelto: ["DAR VUELTO", "Arma el vuelto exacto con billetes y monedas: practicas el cálculo mental de Conita en una compra real."],
+    silabas: ["SÍLABAS", "Cuenta las sílabas de la frase y escribe el total: ejercitas la lectura atenta y la concentración de Conita."],
+    rastreo: ["RASTREO DE HÁMSTERS", "Sigue los dos hámsters entre los gatos mientras el tablero se mueve: fortaleces la memoria visual de Conita."],
+    ppt: ["PIEDRA · PAPEL · TIJERA", "Lee la consigna y elige una mano que gane o pierda a propósito: entrenas el autocontrol de Conita."],
+  };
+
+  function mostrarFicha(juego) {
+    const ficha = DESCRIPCIONES_JUEGOS[juego];
+    if (!ficha) return;
+    $("ficha-juego-titulo").textContent = ficha[0];
+    $("ficha-juego-texto").textContent = ficha[1];
+  }
+
+  function restaurarFicha() {
+    const elegido = [...$("selector-individual").querySelectorAll("button[data-juego]")]
+      .find((boton) => juegosIndividuales.has(boton.dataset.juego));
+    if (elegido) mostrarFicha(elegido.dataset.juego);
+    else {
+      $("ficha-juego-titulo").textContent = "CONITA";
+      $("ficha-juego-texto").textContent = "Elige una prueba para ver cómo entrena a Conita.";
+    }
+  }
+
   function actualizarSelectorIndividual() {
     $("selector-individual")
       .querySelectorAll("button[data-juego]")
@@ -439,16 +472,22 @@
         boton.setAttribute("aria-pressed", juegosIndividuales.has(boton.dataset.juego) ? "true" : "false");
       });
     $("btn-empezar-individual").disabled = juegosIndividuales.size === 0;
+    restaurarFicha();
   }
 
   $("selector-individual").querySelectorAll("button[data-juego]").forEach((boton) => {
+    const juego = boton.dataset.juego;
     boton.addEventListener("click", () => {
-      const juego = boton.dataset.juego;
       if (juegosIndividuales.has(juego)) juegosIndividuales.delete(juego);
       else juegosIndividuales.add(juego);
       actualizarSelectorIndividual();
     });
+    boton.addEventListener("mouseenter", () => mostrarFicha(juego));
+    boton.addEventListener("mouseleave", restaurarFicha);
+    boton.addEventListener("focus", () => mostrarFicha(juego));
+    boton.addEventListener("blur", restaurarFicha);
   });
+  restaurarFicha();
 
   $("btn-todos").addEventListener("click", () => {
     juegosIndividuales = new Set([
@@ -2600,8 +2639,8 @@
       tipoMensaje: "letter",
       feedbackAceptada: (msg) =>
         msg.motivo === "aceptada por intentos"
-          ? `ERA ${msg.esperada} · +${msg.puntos} PTS (POR INTENTOS)`
-          : `${msg.predicha} ✓ · +${msg.puntos} PTS`,
+          ? `ERA ${msg.esperada} · ACEPTADA POR INTENTOS`
+          : `${msg.predicha} ✓`,
       feedbackRechazada: (msg) => `PARECE ${msg.predicha} · INTENTO ${msg.intentos}/3`,
       terminoTexto: "PALABRA COMPLETA · ESPERANDO",
     });
@@ -2855,9 +2894,7 @@
     ultimaPila = msg.alturas;
     const propio = (msg.jugadores && msg.jugadores[yoId]) || msg;
     const acierto = Boolean(propio.acierto);
-    const detalle = acierto
-      ? `BASE 100 + RAPIDEZ ${propio.bono ?? 0} · ×${msg.multiplicador}`
-      : "NO HUBO ACIERTO · SIGUIENTE RONDA";
+    const detalle = textoDesglose(propio);
 
     $("contenido").innerHTML = `<div class="panel resultado cajas-resultado panel-amplio">
       <div class="amplio-arriba">
@@ -2865,7 +2902,6 @@
         <p class="kicker">INFORME · RONDA ${String(msg.ronda).padStart(2, "0")} / ${msg.necesario} · ${escapeHtml(msg.dificultad || "")}</p>
         <h2>INFORME DE LA RONDA</h2>
       </div>
-      ${propio.racha > 0 ? `<div class="cajas-racha">RACHA DE ${propio.racha}</div>` : ""}
       </div>
       <div class="amplio-visual"><div class="campo-cajas"><canvas id="lienzo-cajas" class="lienzo-cajas" width="560" height="360" aria-label="Pila de cajas"></canvas></div></div>
       <div class="amplio-abajo">
@@ -2878,7 +2914,7 @@
         <div class="puntaje ${acierto ? "ganador" : ""}">
           <div class="numero">${propio.puntos ?? 0}</div>
           <div class="desglose">${detalle}</div>
-          <div class="quien">PUNTOS DE LA RONDA</div>
+          <div class="quien">PUNTOS ACUMULADOS</div>
         </div>
       </div>
       ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
@@ -2899,6 +2935,7 @@
       <p class="kicker">INFORME FINAL · CUENTA CAJAS</p>
       <b>${msg.puntos} PUNTOS</b>
       <p class="pista">${escapeHtml(msg.nombre)}, acertaste ${msg.aciertos} de ${msg.rondas} rondas. Mejor racha: ${msg.mejor_racha}.</p>
+      <p class="pista">${textoDesglose(msg)}</p>
       <div class="puntajes" style="text-align:left">
         <div class="puntaje"><div class="numero">${msg.aciertos}/${msg.rondas}</div><div class="quien">ACIERTOS</div></div>
         <div class="puntaje"><div class="numero">${msg.mejor_racha}</div><div class="quien">MEJOR RACHA</div></div>
@@ -2967,8 +3004,8 @@
       tipoMensaje: "digit",
       feedbackAceptada: (msg) =>
         msg.motivo === "aceptada por intentos"
-          ? `ERA ${msg.esperada} · +${msg.puntos} PTS (POR INTENTOS)`
-          : `${msg.predicha} ✓ · +${msg.puntos} PTS`,
+          ? `ERA ${msg.esperada} · ACEPTADA POR INTENTOS`
+          : `${msg.predicha} ✓`,
       feedbackRechazada: (msg) => `PARECE ${msg.predicha} · INTENTO ${msg.intentos}/3`,
       terminoTexto: "RESULTADO COMPLETO · ESPERANDO",
     });
@@ -2979,15 +3016,14 @@
     actualizarMarcador(msg.marcador);
     const propio =
       (msg.desglose && yoId && msg.desglose[yoId]) || {
-        digitos: 0,
-        bono: 0,
+        tiempo: 0,
+        errores: 0,
+        brain_age: 0,
         total: 0,
         correctas: 0,
         automaticas: 0,
       };
-    const detalle =
-      `CIFRAS +${propio.digitos} · RAPIDEZ +${propio.bono}` +
-      (propio.automaticas ? ` · ${propio.automaticas} AUTOMÁTICA(S)` : "");
+    const detalle = textoDesglose(propio);
 
     $("contenido").innerHTML = `<div class="panel resultado cajas-resultado">
       <div class="resultado-cabecera" style="width:100%">
@@ -3002,7 +3038,7 @@
         <div class="puntaje">
           <div class="numero">${propio.total}</div>
           <div class="desglose">${detalle}</div>
-          <div class="quien">PUNTOS DE LA RONDA</div>
+          <div class="quien">PUNTOS ACUMULADOS</div>
         </div>
       </div>
       ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
@@ -3026,6 +3062,7 @@
       <p class="kicker">INFORME FINAL · OPERACIONES MATEMÁTICAS</p>
       <b>${puntos} PUNTOS</b>
       <p class="pista">${escapeHtml(propia.nombre || msg.nombre || "JUGADOR")}, completaste ${msg.rondas} operaciones.</p>
+      <p class="pista">${textoDesglose(msg)}</p>
       <div class="puntajes" style="text-align:left">
         <div class="puntaje"><div class="numero">${msg.rondas}</div><div class="quien">OPERACIONES</div></div>
         <div class="puntaje"><div class="numero">${Math.max(anterior, puntos)}</div><div class="quien">${nuevoRecord ? "¡NUEVO RÉCORD!" : "RÉCORD"}</div></div>
@@ -3190,8 +3227,8 @@
         const gana = id === ganador && !modoPractica;
         const dato = desglose[id];
         const detalle =
-          juego === "escritura" && dato
-            ? `<div class="desglose">LETRAS ${dato.letras} · RAPIDEZ +${dato.bono}</div>`
+          dato && dato.brain_age != null
+            ? `<div class="desglose">${textoDesglose(dato)}</div>`
             : "";
         return `<div class="puntaje ${gana ? "ganador" : ""}">
           <div class="numero">${puntos[id] ?? 0}</div>
@@ -3251,6 +3288,7 @@
           <div class="numero">${dato.victorias ?? 0}</div>
           <div class="quien">${titulo} · VICTORIAS</div>
           <div class="desglose">RONDAS ${dato.rondas ?? 0} · MEJOR ${dato.mejor ?? 0} · TOTAL ${dato.total ?? 0}</div>
+          ${dato.brain_age != null ? `<div class="desglose">${textoDesglose(dato)}</div>` : ""}
         </div>`;
       })
       .join("");
@@ -3295,11 +3333,8 @@
         const dato = resumen[clave] || {};
         const detalle = JUEGOS_MINI.includes(clave) || clave === "rastreo"
           ? `PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}`
-          : clave === "cajas"
-            ? `ACIERTOS ${dato.aciertos ?? 0} · MEJOR RACHA ${dato.mejor_racha ?? 0}`
-            : clave === "operaciones"
-              ? `RONDAS ${dato.rondas ?? 0}`
-              : `VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}`;
+          : `VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}` +
+            (dato.brain_age != null ? ` · ${textoDesglose(dato)}` : "");
         return `<div class="puntaje">
           <div class="numero">${dato.puntos ?? 0}</div>
           <div class="desglose">${detalle}</div>

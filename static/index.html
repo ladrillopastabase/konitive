@@ -69,20 +69,26 @@
         <p class="kicker">MODO INDIVIDUAL</p>
         <h2 class="panel-titulo">ELIGE TUS PRUEBAS</h2>
         <p class="pista">Marca una, varias o todas. Se jugarán una detrás de otra y al final verás un resumen con tus puntos.</p>
-        <div class="selector-individual" id="selector-individual">
-          <button type="button" class="boton-juego" data-juego="pajaros" aria-pressed="false">HÁMSTERS</button>
-          <button type="button" class="boton-juego" data-juego="escritura" aria-pressed="false">PALABRAS</button>
-          <button type="button" class="boton-juego" data-juego="cajas" aria-pressed="false">CAJAS</button>
-          <button type="button" class="boton-juego" data-juego="operaciones" aria-pressed="false">OPERACIONES</button>
-          <button type="button" class="boton-juego" data-juego="stroop" aria-pressed="false">STROOP</button>
-          <button type="button" class="boton-juego" data-juego="triangulos" aria-pressed="false">TRIÁNGULOS</button>
-          <button type="button" class="boton-juego" data-juego="relojes" aria-pressed="false">RELOJES</button>
-          <button type="button" class="boton-juego" data-juego="menor" aria-pressed="false">MENOR A MAYOR</button>
-          <button type="button" class="boton-juego" data-juego="memoria" aria-pressed="false">MEMORIA</button>
-          <button type="button" class="boton-juego" data-juego="vuelto" aria-pressed="false">DAR VUELTO</button>
-          <button type="button" class="boton-juego" data-juego="silabas" aria-pressed="false">SÍLABAS</button>
-          <button type="button" class="boton-juego" data-juego="rastreo" aria-pressed="false">RASTREO DE HÁMSTERS</button>
-          <button type="button" class="boton-juego" data-juego="ppt" aria-pressed="false">PIEDRA · PAPEL · TIJERA</button>
+        <div class="selector-layout">
+          <div class="selector-individual" id="selector-individual">
+            <button type="button" class="boton-juego" data-juego="pajaros" aria-pressed="false">HÁMSTERS</button>
+            <button type="button" class="boton-juego" data-juego="escritura" aria-pressed="false">PALABRAS</button>
+            <button type="button" class="boton-juego" data-juego="cajas" aria-pressed="false">CAJAS</button>
+            <button type="button" class="boton-juego" data-juego="operaciones" aria-pressed="false">OPERACIONES</button>
+            <button type="button" class="boton-juego" data-juego="stroop" aria-pressed="false">STROOP</button>
+            <button type="button" class="boton-juego" data-juego="triangulos" aria-pressed="false">TRIÁNGULOS</button>
+            <button type="button" class="boton-juego" data-juego="relojes" aria-pressed="false">RELOJES</button>
+            <button type="button" class="boton-juego" data-juego="menor" aria-pressed="false">MENOR A MAYOR</button>
+            <button type="button" class="boton-juego" data-juego="memoria" aria-pressed="false">MEMORIA</button>
+            <button type="button" class="boton-juego" data-juego="vuelto" aria-pressed="false">DAR VUELTO</button>
+            <button type="button" class="boton-juego" data-juego="silabas" aria-pressed="false">SÍLABAS</button>
+            <button type="button" class="boton-juego" data-juego="rastreo" aria-pressed="false">RASTREO DE HÁMSTERS</button>
+            <button type="button" class="boton-juego" data-juego="ppt" aria-pressed="false">PIEDRA · PAPEL · TIJERA</button>
+          </div>
+          <aside class="ficha-juego" id="ficha-juego" aria-live="polite">
+            <h3 class="ficha-juego-titulo" id="ficha-juego-titulo">CONITA</h3>
+            <p class="ficha-juego-texto" id="ficha-juego-texto">Elige una prueba para ver cómo entrena a Conita.</p>
+          </aside>
         </div>
         <div class="acciones">
           <button id="btn-todos" class="boton contorno chico" type="button">JUGAR TODOS</button>
@@ -201,6 +207,7 @@
       </div>
     </form>
   </dialog>
+  <script src="/static/desgloses.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

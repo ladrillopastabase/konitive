@@ -6,6 +6,7 @@ import time
 
 from juego.operaciones import generar_operacion
 from arbitro import nucleo
+from arbitro.puntuacion import brain_age_y_puntos, fallos_escritura
 from arbitro.nucleo import (
     Sala,
     TIEMPO_CUENTA_PREVIA,
@@ -26,8 +27,6 @@ from arbitro.nucleo import (
 RONDAS_OPERACIONES = 10
 TIEMPO_FLASH_OPERACION = 0.9
 TIEMPO_ESPERA_OPERACIONES = 60
-BONO_MAXIMO_OPERACIONES = 50
-BONO_POR_SEGUNDO_OPERACIONES = 5
 
 
 def marcador_operaciones(
@@ -51,6 +50,8 @@ async def bucle_operaciones(sala: Sala) -> None:
     jugadores_ = participantes(sala)
     ids = [j.id for j in jugadores_]
     puntos = {pid: 0 for pid in ids}
+    tiempos = {pid: 0.0 for pid in ids}
+    errores = {pid: 0 for pid in ids}
     anterior: str | None = None
     sala.ultimos_puntos = {}
     rondas = rondas_para(sala, RONDAS_OPERACIONES)
@@ -156,27 +157,31 @@ async def bucle_operaciones(sala: Sala) -> None:
             desglose: dict[str, dict] = {}
             for jugador in jugadores_:
                 progreso = jugador.progreso
-                base = sum(d["puntos"] for d in progreso["digitos"])
+                fin = progreso.get("fin")
+                tiempo = (
+                    max(0.0, fin - inicio)
+                    if fin is not None
+                    else float(TIEMPO_ESPERA_OPERACIONES)
+                )
+                fallos = fallos_escritura(progreso["digitos"], incompleto=fin is None)
                 automaticas = sum(
                     1 for d in progreso["digitos"] if d["motivo"] == "automatica"
                 )
                 correctas = sum(
                     1 for d in progreso["digitos"] if d["motivo"] != "automatica"
                 )
-                bono = 0
-                if progreso["fin"] is not None:
-                    tardanza = max(0.0, progreso["fin"] - inicio)
-                    bono = max(
-                        0,
-                        BONO_MAXIMO_OPERACIONES
-                        - int(tardanza * BONO_POR_SEGUNDO_OPERACIONES),
-                    )
-                total = base + bono
-                puntos[jugador.id] += total
-                desglose[jugador.id] = {
-                    "digitos": base,
-                    "bono": bono,
-                    "total": total,
+
+                pid = jugador.id
+                tiempos[pid] += tiempo
+                errores[pid] += fallos
+                brain, puntos[pid] = brain_age_y_puntos(
+                    tiempos[pid], errores[pid]
+                )
+                desglose[pid] = {
+                    "tiempo": tiempo,
+                    "errores": fallos,
+                    "brain_age": brain,
+                    "total": puntos[pid],
                     "correctas": correctas,
                     "automaticas": automaticas,
                 }
@@ -200,24 +205,33 @@ async def bucle_operaciones(sala: Sala) -> None:
             )
             await nucleo.pausa(sala, 3.0 if ronda < rondas else 1.0)
 
+        primero = ids[0] if ids else sala.host_id
+        tiempo_total = tiempos.get(primero, 0.0)
+        fallos_totales = errores.get(primero, 0)
+        brain_final, puntos_final = brain_age_y_puntos(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
             registrar_resultado_individual(
                 sala,
                 "operaciones",
                 {
                     "rondas": rondas,
-                    "puntos": puntos.get(ids[0], 0) if ids else 0,
+                    "puntos": puntos.get(primero, 0),
+                    "tiempo_total": tiempo_total,
+                    "errores": fallos_totales,
+                    "brain_age": brain_final,
                 },
             )
             return
 
         sala.fase = "fin"
         sala.ultimos_puntos = dict(puntos)
-        primero = ids[0] if ids else sala.host_id
         await sala.difundir(
             {
                 "type": "operacion_over",
-                "puntos": puntos.get(primero, 0),
+                "puntos": puntos_final,
+                "tiempo_total": tiempo_total,
+                "errores": fallos_totales,
+                "brain_age": brain_final,
                 "rondas": rondas,
                 "nombre": sala.jugadores[primero].nombre
                 if primero in sala.jugadores

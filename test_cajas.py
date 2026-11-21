@@ -17,7 +17,8 @@ import uvicorn
 import websockets
 
 import servidor
-from arbitro import nucleo
+from arbitro import cajas, nucleo
+from arbitro.puntuacion import brain_age_y_puntos
 from juego.cajas import DIFICULTADES, contar_visibles, generar_pila, suma_total
 
 
@@ -25,7 +26,13 @@ async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 
+async def esperar_corta(sala, evento, segundos):
+    """Igual que la real, pero sin dejar 10 s colgados si nadie responde."""
+    await nucleo.esperar(sala, evento, min(segundos, 0.05))
+
+
 nucleo.pausa = pausa_corta
+cajas.esperar = esperar_corta
 
 config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8766, log_level="error")
 servidor_uvicorn = uvicorn.Server(config)
@@ -115,7 +122,7 @@ async def jugar_tanda() -> dict:
             elif msg["type"] == "cajas_hide":
                 # Se confirma siempre la respuesta correcta con el mismo formato
                 # que el contador de pájaros, para comprobar la subida de
-                # dificultad y el multiplicador por racha.
+                # dificultad sin bonos ni multiplicadores.
                 total = sum(sum(fila) for fila in vistas[-2]["alturas"])
                 await ws.send(json.dumps({"type": "cajas_answer", "count": total}))
 
@@ -123,13 +130,12 @@ async def jugar_tanda() -> dict:
                 ronda = msg["ronda"]
                 nivel = min(3, 1 + (ronda - 1) // 3)
                 esperado = ("FÁCIL", "NORMAL", "DIFÍCIL")[nivel - 1]
-                multiplicador = nivel
                 assert msg["dificultad"] == esperado, (ronda, msg["dificultad"])
-                assert msg["multiplicador"] == multiplicador, msg
                 assert msg["acierto"] is True, msg
-                assert 0 <= msg["bono"] <= 50
-                assert msg["puntos"] == (100 + msg["bono"]) * multiplicador, msg
-                assert msg["racha"] == ronda, msg
+                assert not {"bono", "multiplicador", "racha"} & msg.keys(), msg
+                assert msg["errores"] == 0, msg
+                assert msg["tiempo"] >= 0, msg
+                assert msg["puntos"] == brain_age_y_puntos(msg["brain_age"], 0)[1], msg
                 assert sum(sum(fila) for fila in msg["alturas"]) == msg["total"]
 
             elif msg["type"] == "cajas_over":
@@ -209,17 +215,23 @@ async def jugar_fiesta_dos_mandos():
         if len(hides) > vistos_hide:
             vistos_hide = len(hides)
             await mandos[0].enviar({"type": "cajas_answer", "count": total})
-            await mandos[1].enviar({"type": "cajas_answer", "count": total + 1})
+            # Primera ronda: Beto no contesta para cubrir el tiempo límite + error.
+            if vistos_hide > 1:
+                await mandos[1].enviar({"type": "cajas_answer", "count": total + 1})
         await asyncio.sleep(0.01)
 
     assert host.de_tipo("cajas_over"), "No terminó la fiesta de cajas"
     resultados = host.de_tipo("cajas_result")
     assert len(resultados) == nucleo.RONDAS_FIESTA
-    for msg in resultados:
+    for ronda, msg in enumerate(resultados, start=1):
         assert set(msg["jugadores"]) == set(ids), msg
         assert msg["jugadores"][ids[0]]["acierto"] is True
         assert msg["jugadores"][ids[1]]["acierto"] is False
         assert set(msg["marcador"]["cajas"]) == set(ids)
+        if ronda == 1:
+            sin_respuesta = msg["jugadores"][ids[1]]
+            assert sin_respuesta["errores"] == 1, sin_respuesta
+            assert sin_respuesta["tiempo"] == cajas.TIEMPO_RESPUESTA_CAJAS
     # El informe de cada ronda se ve solo en la pantalla: los mandos no
     # reciben la pila revelada ni el detalle de aciertos.
     for mando in mandos:
@@ -237,7 +249,7 @@ async def jugar_fiesta_dos_mandos():
     filas = {fila["id"]: fila for fila in sobre["clasificacion"]}
     assert set(filas) == set(ids)
     assert filas[ids[0]]["puntos"] > filas[ids[1]]["puntos"]
-    assert filas[ids[1]]["puntos"] == 0
+    assert 0 < filas[ids[1]]["puntos"] < 700, filas[ids[1]]
 
     await host.esperar("podium_update")
     await asyncio.gather(*(m.cerrar() for m in mandos), host.cerrar())
@@ -260,8 +272,10 @@ async def main():
     assert over["aciertos"] == 10, over
     assert over["mejor_racha"] == 10, over
     assert over["rondas"] == 10, over
-    assert over["puntos"] == sum(m["puntos"] for m in mensajes["cajas_result"])
-    print("Puntos totales:", over["puntos"])
+    assert over["errores"] == 0, over
+    assert over["puntos"] == brain_age_y_puntos(over["brain_age"], 0)[1], over
+    assert over["puntos"] == mensajes["cajas_result"][-1]["puntos"], over
+    print("Puntos finales:", over["puntos"])
 
     await asyncio.sleep(0.1)
     assert not servidor.salas, f"Quedaron salas abiertas: {list(servidor.salas)}"

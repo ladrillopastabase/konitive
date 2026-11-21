@@ -6,7 +6,7 @@ import time
 
 from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager, nivel_para_ronda
 from arbitro import nucleo
-from arbitro.minijuegos import brain_age_y_puntos
+from arbitro.puntuacion import brain_age_y_puntos
 from arbitro.nucleo import (
     Jugador,
     Sala,

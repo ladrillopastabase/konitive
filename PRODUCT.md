@@ -39,7 +39,7 @@ El usuario confirmó que la identidad está en la combinación de tres mecanismo
 - Modos: duelo **ABRIR SALA / UNIRSE** (PÁJAROS y PALABRAS, mejor de 3 victorias por juego), **INDIVIDUAL** (de 1 a 13 pruebas en orden fijo con informe final) y **FIESTA** (los 13 juegos, podio entre juegos y podio final).
 - Juegos clásicos: **PÁJAROS**, **PALABRAS**, **CAJAS** (tanda de 10 rondas) y **OPERACIONES** (tanda de 10 rondas).
 - Nueve minijuegos: **STROOP**, **TRIÁNGULOS**, **RELOJES**, **MENOR A MAYOR**, **MEMORIA**, **DAR VUELTO**, **SÍLABAS**, **RASTREO DE HÁMSTERS** y **PIEDRA · PAPEL · TIJERA**.
-- Puntuación de los minijuegos: Brain Age = `tiempo total + 5 s por error` (menor es mejor); en el podio de FIESTA se invierte a puntos altos para mantener el orden de mayor a menor.
+- Puntuación de las 13 pruebas: Brain Age = `tiempo total + 5 s por error` (menor es mejor); cada intento fallido cuenta, y sin respuesta se suma el límite de tiempo y un error. En el podio y los informes se invierte a `max(0, 1000 − brain_age × 10)` para mantener el orden de mayor a menor. El desglose muestra `tiempo / errores / brain_age`; no hay base, bonus ni multiplicadores.
 - En FIESTA la pantalla no entra al podio. No se envían a los mandos las aves, la palabra, la pila de cajas, el enunciado de la operación, la grilla de MEMORIA ni ninguna respuesta correcta. El informe de cada ronda se muestra solo en la pantalla; el mando solo espera la siguiente.
 - Si un mando se desconecta, la partida sigue; si se desconecta la pantalla, la partida se cancela.
 - Reconocedores EMNIST (26 letras) y MNIST (10 dígitos) incluidos en `juego/modelos/`. No requieren descarga.

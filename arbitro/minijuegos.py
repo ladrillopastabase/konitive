@@ -8,6 +8,10 @@ from juego.minijuegos import (
     DENOMINACIONES_CLP, JUEGOS_ESCRITURA, MANOS, RONDAS_MINI, generar,
 )
 from arbitro import nucleo
+from arbitro.puntuacion import (
+    PUNTOS_BASE as PUNTOS_MINI_BASE,
+    brain_age_y_puntos,
+)
 from arbitro.nucleo import (
     Jugador,
     Sala,
@@ -37,10 +41,6 @@ TIEMPO_RESPUESTA_MINI = {
     "silabas": 60.0,
     "ppt": 4.0,
 }
-SEGUNDOS_POR_ERROR = 5.0
-PUNTOS_MINI_BASE = 1000
-PUNTOS_MINI_POR_SEGUNDO = 10
-
 # Stroop: la palabra se ve menos tiempo cuanto más avanza la dificultad. El
 # plazo para responder no cambia (TIEMPO_RESPUESTA_MINI["stroop"]).
 EXPOSICION_STROOP_INICIAL = 1.2
@@ -103,13 +103,6 @@ def marcador_mini(sala: Sala, juego: str, puntos: dict[str, int], ronda: int) ->
         else "JUGADOR",
         "necesario": rondas_para(sala, RONDAS_MINI[juego]),
     }
-
-
-def brain_age_y_puntos(tiempo: float, errores: int) -> tuple[float, int]:
-    """Brain Age: tiempo + 5 s por error, menor es mejor. Se invierte para el podio."""
-    brain = tiempo + SEGUNDOS_POR_ERROR * errores
-    puntos = max(0, round(PUNTOS_MINI_BASE - brain * PUNTOS_MINI_POR_SEGUNDO))
-    return brain, puntos
 
 
 def datos_para_resultado(juego: str, reto: dict) -> dict:

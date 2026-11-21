@@ -19,6 +19,7 @@ import websockets
 
 import servidor
 from arbitro import nucleo
+from arbitro.puntuacion import brain_age_y_puntos
 from juego.operaciones import generar_operacion, nivel_para
 
 
@@ -157,9 +158,12 @@ async def jugar_individual() -> None:
         assert mensaje["aceptada"] is True, mensaje
     for mensaje in cliente.de_tipo("operacion_result"):
         dato = mensaje["desglose"][yo]
-        assert dato["total"] == dato["digitos"] + dato["bono"]
+        assert not {"digitos", "bono"} & dato.keys(), dato
+        assert dato["total"] == brain_age_y_puntos(dato["brain_age"], 0)[1]
+        assert dato["errores"] == 0
         assert dato["automaticas"] == 0
         assert mensaje["resultado"] == resultado_de(mensaje["texto"])
+    assert sobre["puntos"] == brain_age_y_puntos(sobre["brain_age"], 0)[1], sobre
 
     await cliente.enviar({"type": "operaciones_restart"})
     reinicio = await cliente.esperar("match_start")

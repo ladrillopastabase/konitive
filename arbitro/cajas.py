@@ -6,6 +6,7 @@ import time
 
 from juego.cajas import DIFICULTADES, generar_pila
 from arbitro import nucleo
+from arbitro.puntuacion import brain_age_y_puntos
 from arbitro.nucleo import (
     Sala,
     clasificacion,
@@ -25,9 +26,6 @@ from arbitro.nucleo import (
 RONDAS_CAJAS = 10
 TIEMPO_CUENTA_CAJAS = 3.0
 TIEMPO_RESPUESTA_CAJAS = 10
-PUNTOS_BASE_CAJAS = 100
-BONO_MAXIMO_CAJAS = 50
-BONO_POR_SEGUNDO_CAJAS = 5
 
 
 def marcador_cajas(
@@ -64,6 +62,8 @@ async def bucle_cajas(sala: Sala) -> None:
     puntos = {pid: 0 for pid in ids}
     aciertos = {pid: 0 for pid in ids}
     rachas = {pid: 0 for pid in ids}
+    tiempos = {pid: 0.0 for pid in ids}
+    errores = {pid: 0 for pid in ids}
     mejor_racha = {pid: 0 for pid in ids}
     anterior: list[list[int]] | None = None
     sala.ultimos_puntos = {}
@@ -93,7 +93,6 @@ async def bucle_cajas(sala: Sala) -> None:
             )
             pila = generar_pila(indice_dificultad, anterior)
             anterior = pila["alturas"]
-            multiplicador = 1 + indice_dificultad
 
             sala.datos = {
                 "juego": "cajas",
@@ -163,30 +162,28 @@ async def bucle_cajas(sala: Sala) -> None:
                 respuesta = sala.respuestas.get(pid)
                 elegida = respuesta[0] if respuesta else None
                 acierto = elegida == pila["total"]
-                bono = 0
-                if acierto and respuesta:
-                    tardanza = max(
-                        0.0, respuesta[1] - sala.datos["momento_respuesta"]
-                    )
-                    bono = max(
-                        0, BONO_MAXIMO_CAJAS - int(tardanza * BONO_POR_SEGUNDO_CAJAS)
-                    )
+                tiempo = (
+                    max(0.0, respuesta[1] - sala.datos["momento_respuesta"])
+                    if respuesta
+                    else float(TIEMPO_RESPUESTA_CAJAS)
+                )
+                fallo = 0 if acierto else 1
                 if acierto:
                     aciertos[pid] += 1
                     rachas[pid] += 1
                     mejor_racha[pid] = max(mejor_racha[pid], rachas[pid])
                 else:
                     rachas[pid] = 0
-                puntos_ronda = (
-                    (PUNTOS_BASE_CAJAS + bono) * multiplicador if acierto else 0
-                )
-                puntos[pid] += puntos_ronda
+                tiempos[pid] += tiempo
+                errores[pid] += fallo
+                brain, puntos[pid] = brain_age_y_puntos(tiempos[pid], errores[pid])
                 por_jugador[pid] = {
                     "elegida": elegida,
                     "acierto": acierto,
-                    "puntos": puntos_ronda,
-                    "bono": bono,
-                    "racha": rachas[pid],
+                    "tiempo": tiempo,
+                    "errores": fallo,
+                    "brain_age": brain,
+                    "puntos": puntos[pid],
                 }
 
             # Cada mando recibe solo si acertó: nunca el total ni la pila.
@@ -214,7 +211,6 @@ async def bucle_cajas(sala: Sala) -> None:
                     "base": pila["base"],
                     "total": pila["total"],
                     "visibles": pila["visibles"],
-                    "multiplicador": multiplicador,
                     "ronda": ronda,
                     "necesario": rondas,
                     "dificultad": pila["dificultad"],
@@ -229,14 +225,21 @@ async def bucle_cajas(sala: Sala) -> None:
             )
             await nucleo.pausa(sala, 3.0 if ronda < rondas else 1.0)
 
+        primero = ids[0] if ids else sala.host_id
+        tiempo_total = tiempos.get(primero, 0.0)
+        fallos_totales = errores.get(primero, 0)
+        brain_final, puntos_final = brain_age_y_puntos(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
             registrar_resultado_individual(
                 sala,
                 "cajas",
                 {
                     "rondas": rondas,
-                    "puntos": sum(puntos.values()),
-                    "aciertos": aciertos.get(ids[0], 0) if ids else 0,
+                    "puntos": puntos.get(primero, 0),
+                    "tiempo_total": tiempo_total,
+                    "errores": fallos_totales,
+                    "brain_age": brain_final,
+                    "aciertos": aciertos.get(primero, 0),
                     "mejor_racha": max(mejor_racha.values(), default=0),
                 },
             )
@@ -244,11 +247,13 @@ async def bucle_cajas(sala: Sala) -> None:
 
         sala.fase = "fin"
         sala.ultimos_puntos = dict(puntos)
-        primero = ids[0] if ids else sala.host_id
         await sala.difundir(
             {
                 "type": "cajas_over",
-                "puntos": sum(puntos.values()),
+                "puntos": puntos_final,
+                "tiempo_total": tiempo_total,
+                "errores": fallos_totales,
+                "brain_age": brain_final,
                 "aciertos": aciertos.get(primero, 0),
                 "mejor_racha": max(mejor_racha.values(), default=0),
                 "rondas": rondas,
