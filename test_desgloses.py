@@ -14,6 +14,7 @@ process.stdout.write(JSON.stringify([
   textoDesglose({ tiempo: 2, errores: 1, brain_age: 7 }),
   textoDesglose({}),
   textoDesglose({ tiempo: 1.256, errores: 2, brain_age: 11.256 }),
+  textoDesglose({ tiempo_total: 12, errores: 2, brain_age: 22 }),
 ]));
 """
 
@@ -29,10 +30,11 @@ def probar_texto_desglose() -> None:
     )
     import json
 
-    completo, vacio, decimales = json.loads(resultado.stdout)
+    completo, vacio, decimales, informe = json.loads(resultado.stdout)
     assert completo == "TIEMPO 2 s · ERRORES 1 · BRAIN AGE 7", completo
     assert vacio == "TIEMPO 0 s · ERRORES 0 · BRAIN AGE 0", vacio
     assert decimales == "TIEMPO 1.26 s · ERRORES 2 · BRAIN AGE 11.26", decimales
+    assert informe == "TIEMPO 12 s · ERRORES 2 · BRAIN AGE 22", informe
 
 
 def main() -> None:

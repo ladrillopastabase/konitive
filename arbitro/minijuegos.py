@@ -575,7 +575,8 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                         casilla["estado"] == "aceptada"
                         for casilla in progreso["digitos"]
                     )
-                    errores = progreso["fallos"]
+                    # Sin respuesta: el plazo completo y un error.
+                    errores = progreso["fallos"] + (0 if progreso["fin"] else 1)
                     fin = progreso["fin"] or ahora
                 else:
                     respuesta = sala.respuestas.get(pid)
@@ -598,7 +599,8 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                         acierto = bool(respuesta) and respuesta[0] == reto["esperado"]
                     else:
                         acierto = bool(respuesta) and progreso.get("total_entregado") == reto["vuelto"]
-                    errores = progreso["fallos"]
+                    # Sin respuesta: el plazo completo y un error.
+                    errores = progreso["fallos"] + (0 if respuesta else 1)
                     fin = progreso["fin"] or ahora
                 if not respuesta and juego not in JUEGOS_ESCRITURA:
                     tiempo = espera

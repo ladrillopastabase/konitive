@@ -455,9 +455,14 @@
     $("ficha-juego-texto").textContent = ficha[1];
   }
 
+  let fichaActiva = null;
+
   function restaurarFicha() {
-    const elegido = [...$("selector-individual").querySelectorAll("button[data-juego]")]
-      .find((boton) => juegosIndividuales.has(boton.dataset.juego));
+    const selector = $("selector-individual");
+    const elegido = fichaActiva && selector.contains(fichaActiva)
+      ? fichaActiva
+      : [...selector.querySelectorAll("button[data-juego]")]
+          .find((boton) => juegosIndividuales.has(boton.dataset.juego));
     if (elegido) mostrarFicha(elegido.dataset.juego);
     else {
       $("ficha-juego-titulo").textContent = "CONITA";
@@ -482,10 +487,22 @@
       else juegosIndividuales.add(juego);
       actualizarSelectorIndividual();
     });
-    boton.addEventListener("mouseenter", () => mostrarFicha(juego));
-    boton.addEventListener("mouseleave", restaurarFicha);
-    boton.addEventListener("focus", () => mostrarFicha(juego));
-    boton.addEventListener("blur", restaurarFicha);
+    boton.addEventListener("mouseenter", () => {
+      fichaActiva = boton;
+      mostrarFicha(juego);
+    });
+    boton.addEventListener("mouseleave", () => {
+      if (fichaActiva === boton && document.activeElement !== boton) fichaActiva = null;
+      restaurarFicha();
+    });
+    boton.addEventListener("focus", () => {
+      fichaActiva = boton;
+      mostrarFicha(juego);
+    });
+    boton.addEventListener("blur", () => {
+      if (fichaActiva === boton) fichaActiva = null;
+      restaurarFicha();
+    });
   });
   restaurarFicha();
 

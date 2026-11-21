@@ -58,6 +58,13 @@ document.getElementById('f').addEventListener('load', () => {
     const al_hover = leer()[1];
     evento(boton('rastreo'), 'mouseleave', MouseEvent);
     resultado.vuelve_a_seleccion = {al_hover, al_salir: leer()[1]};
+
+    d.getElementById('btn-todos').click();
+    const br = boton('rastreo');
+    evento(br, 'mouseenter', MouseEvent);
+    br.click();
+    resultado.click_mantiene_ficha = leer();
+    evento(br, 'mouseleave', MouseEvent);
     terminar(resultado);
   } catch (error) {
     terminar({error: String(error)});
@@ -150,10 +157,19 @@ def probar_al_salir_vuelve_a_la_prueba_elegida() -> None:
     assert "caja" in datos["vuelve_a_seleccion"]["al_salir"].lower(), datos["vuelve_a_seleccion"]
 
 
+def probar_click_mantiene_la_ficha_visible() -> None:
+    datos = leer_cliente()
+    assert "error" not in datos, datos.get("error")
+    assert datos["click_mantiene_ficha"][0].strip() == "RASTREO DE HÁMSTERS", (
+        datos["click_mantiene_ficha"]
+    )
+
+
 def main() -> None:
     probar_ficha_lateral_con_conita_y_objetivo()
     probar_hover_y_foco_cambian_la_ficha()
     probar_al_salir_vuelve_a_la_prueba_elegida()
+    probar_click_mantiene_la_ficha_visible()
     print("OK - Descripciones individuales con hover, foco y selección")
 
 

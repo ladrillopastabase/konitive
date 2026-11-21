@@ -8,6 +8,7 @@
 
   globalThis.textoDesglose = function textoDesglose(dato) {
     const d = dato || {};
-    return `TIEMPO ${numero(d.tiempo)} s · ERRORES ${numero(d.errores)} · BRAIN AGE ${numero(d.brain_age)}`;
+    const tiempo = d.tiempo ?? d.tiempo_total;
+    return `TIEMPO ${numero(tiempo)} s · ERRORES ${numero(d.errores)} · BRAIN AGE ${numero(d.brain_age)}`;
   };
 })();

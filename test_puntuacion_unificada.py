@@ -162,6 +162,70 @@ async def probar_ronda_escritura_sin_respuesta() -> None:
     assert puntos["yo"] == esperado, (puntos, esperado)
 
 
+def probar_resumen_clasico_no_suma_puntos_acumulados() -> None:
+    """El informe final usa el Brain Age acumulado, no la suma de parciales."""
+    historial = [
+        {"tiempo": {"yo": 2.0}, "errores": {"yo": 0}, "puntos": {"yo": 980}},
+        {"tiempo": {"yo": 4.0}, "errores": {"yo": 0}, "puntos": {"yo": 960}},
+        {"tiempo": {"yo": 6.0}, "errores": {"yo": 0}, "puntos": {"yo": 940}},
+    ]
+    sala = _sala_clasica("pajaros", historial=historial)
+    sala.rondas_juego["pajaros"] = 3
+    sala.ganadas["pajaros"]["yo"] = 3
+    resumen = clasico.resumen_clasico_individual(sala, "pajaros")
+    assert resumen["tiempo_total"] == 12.0, resumen
+    assert resumen["brain_age"] == 12.0, resumen
+    assert resumen["puntos"] == 880 and resumen["total"] == 880, resumen
+    assert resumen["mejor"] == 980, resumen
+
+
+async def probar_escritura_sin_respuesta_no_cuenta_letras_correctas() -> None:
+    """Una palabra sin responder no se informa como acertada al mando."""
+    sala = _sala_clasica("escritura")
+
+    async def esperar_nada(_sala, _evento, _segundos):
+        return None
+
+    with _con_pausas_desactivadas(esperar_nada):
+        await clasico.ronda_escritura(sala, 1)
+    desglose = sala.datos["desglose"]["yo"]
+    assert desglose["correctas"] == 0, desglose
+    assert desglose["automaticas"] == 0, desglose
+
+
+class _WsFalso:
+    def __init__(self) -> None:
+        self.enviados: list[dict] = []
+
+    async def send_json(self, mensaje: dict) -> None:
+        self.enviados.append(mensaje)
+
+
+async def probar_difusion_fiesta_oculta_metricas_de_desglose() -> None:
+    """El tiempo, errores y Brain Age del primero no se filtran a los mandos."""
+    sala = Sala(codigo="FIEST", host_id="pantalla", modo="fiesta", capacidad=2)
+    ws_pantalla, ws_mando = _WsFalso(), _WsFalso()
+    sala.jugadores["pantalla"] = Jugador(
+        id="pantalla", nombre="PANTALLA", ws=ws_pantalla, rol="pantalla"
+    )
+    sala.jugadores["mando"] = Jugador(
+        id="mando", nombre="MANDO", ws=ws_mando, rol="mando"
+    )
+    await sala.difundir(
+        {
+            "type": "cajas_over",
+            "puntos": 495,
+            "tiempo_total": 12.0,
+            "errores": 2,
+            "brain_age": 22.0,
+        }
+    )
+    assert len(ws_pantalla.enviados) == 1, ws_pantalla.enviados
+    assert {"tiempo_total", "errores", "brain_age"} <= ws_pantalla.enviados[0].keys()
+    assert len(ws_mando.enviados) == 1, ws_mando.enviados
+    assert not {"tiempo_total", "errores", "brain_age"} & ws_mando.enviados[0].keys()
+
+
 def main() -> None:
     probar_formula_brain_age()
     probar_fallos_escritura()
@@ -171,6 +235,9 @@ def main() -> None:
     asyncio.run(probar_ronda_pajaros_acumula_entre_rondas())
     asyncio.run(probar_ronda_escritura_suma_intentos_fallidos())
     asyncio.run(probar_ronda_escritura_sin_respuesta())
+    probar_resumen_clasico_no_suma_puntos_acumulados()
+    asyncio.run(probar_escritura_sin_respuesta_no_cuenta_letras_correctas())
+    asyncio.run(probar_difusion_fiesta_oculta_metricas_de_desglose())
     print("OK - Fórmula Brain Age compartida y clásicos")
 
 

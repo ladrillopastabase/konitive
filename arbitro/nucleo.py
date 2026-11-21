@@ -18,7 +18,10 @@ from juego.reconocedor import Reconocedor, ReconocedorDigitos
 # Datos que en FIESTA solo puede ver la pantalla: incluyen el marcador ajeno,
 # los conteos de los demás o el desglose del podio.
 CLAVES_SOLO_PANTALLA = frozenset(
-    {"marcador", "conteos", "confirmados", "podio", "antes", "despues", "puntos_juego"}
+    {
+        "marcador", "conteos", "confirmados", "podio", "antes", "despues",
+        "puntos_juego", "tiempo_total", "errores", "brain_age",
+    }
 )
 
 

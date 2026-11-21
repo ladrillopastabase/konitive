@@ -19,6 +19,7 @@ import uvicorn
 import websockets
 
 import servidor
+import arbitro.minijuegos as mini_arbitro
 from arbitro import nucleo
 from arbitro.minijuegos import brain_age_y_puntos, exposicion_stroop
 from juego.minijuegos import (
@@ -430,12 +431,37 @@ async def jugar_lista_fiesta() -> None:
     print("  Fiesta con lista: rondas y dificultad por juego, podio entre juegos")
 
 
+async def jugar_individual_sin_responder() -> None:
+    """Cada ronda sin respuesta cuenta el plazo completo y un error."""
+    juego = "ppt"
+    plazo_original = mini_arbitro.TIEMPO_RESPUESTA_MINI[juego]
+    mini_arbitro.TIEMPO_RESPUESTA_MINI[juego] = 0.05
+    cliente = Cliente(await websockets.connect(URL))
+    try:
+        await cliente.enviar(
+            {"type": "individual", "nombre": "Solo", "juegos": [juego]}
+        )
+        await cliente.esperar("individual_game_start")
+        resumen = await cliente.esperar("individual_summary", timeout=20)
+        dato = resumen["resumen"][juego]
+        assert dato["errores"] == RONDAS_MINI[juego], dato
+        sin_errores = brain_age_y_puntos(dato["tiempo_total"], 0)[1]
+        assert dato["puntos"] < sin_errores, (dato, sin_errores)
+    finally:
+        mini_arbitro.TIEMPO_RESPUESTA_MINI[juego] = plazo_original
+        await cliente.cerrar()
+        while servidor.salas:
+            await asyncio.sleep(0.01)
+    print("  PPT sin responder: un error por ronda, no solo el tiempo")
+
+
 async def main() -> None:
     assert brain_age_y_puntos(10.0, 0) == (10.0, 900)
     assert brain_age_y_puntos(10.0, 2) == (20.0, 800), "5 s por error"
     print("Individual:")
     for juego in JUEGOS_MINI:
         await jugar_individual(juego)
+    await jugar_individual_sin_responder()
     print("Fiesta:")
     for juego in ("memoria",) + SOLO_PANTALLA:
         await jugar_fiesta(juego)
