@@ -1,4 +1,4 @@
-"""El desglose único del cliente: tiempo, errores y puntuación."""
+"""El desglose único del cliente: tiempo y errores (la puntuación es el número)."""
 from __future__ import annotations
 
 from apoyo import RAIZ  # primero: deja la raíz del proyecto en sys.path
@@ -32,16 +32,16 @@ def probar_texto_desglose() -> None:
     import json
 
     completo, vacio, decimales, informe, suma = json.loads(resultado.stdout)
-    assert completo == "TIEMPO 2 s · ERRORES 1 · PUNTUACIÓN 7", completo
-    assert vacio == "TIEMPO 0 s · ERRORES 0 · PUNTUACIÓN 0", vacio
-    assert decimales == "TIEMPO 1.26 s · ERRORES 2 · PUNTUACIÓN 11.26", decimales
+    assert completo == "TIEMPO 2 s · ERRORES 1", completo
+    assert vacio == "TIEMPO 0 s · ERRORES 0", vacio
+    assert decimales == "TIEMPO 1.26 s · ERRORES 2", decimales
     assert suma == "16.4", suma  # nunca 16.400000000000002
-    assert informe == "TIEMPO 12 s · ERRORES 2 · PUNTUACIÓN 22", informe
+    assert informe == "TIEMPO 12 s · ERRORES 2", informe
 
 
 def main() -> None:
     probar_texto_desglose()
-    print("OK - Desglose único TIEMPO / ERRORES / PUNTUACIÓN")
+    print("OK - Desglose único TIEMPO / ERRORES")
 
 
 if __name__ == "__main__":

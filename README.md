@@ -116,8 +116,9 @@ mejor; no hay escala invertida ni puntos. El podio ordena de menor a mayor
 puntuación, que es el tiempo acumulado con penalizaciones. Si no se responde a
 tiempo se cuenta el límite completo y **un error**;
 en PALABRAS y OPERACIONES cada carácter rechazado cuenta como un error (tres
-rechazos seguidos = aceptación automática = 15 s). El desglose siempre muestra
-`TIEMPO / ERRORES / PUNTUACIÓN`; no hay base, bonus de rapidez ni multiplicadores.
+rechazos seguidos = aceptación automática = 15 s). El desglose muestra
+`TIEMPO / ERRORES`; la puntuación va como número grande, sin repetirse. No hay
+base, bonus de rapidez ni multiplicadores.
 
 ### PÁJAROS y PALABRAS
 
@@ -146,7 +147,7 @@ que ninguna caja flota.
   izquierda/derecha) y **CONFIRMAR CUENTA** (tecla **Enter**).
 - La racha sigue subiendo la dificultad cada 3 aciertos, pero ya no multiplica
   el resultado. El resultado vuelve a mostrar la pila **tal como se vio**, sin
-  transparencias, junto al desglose `TIEMPO / ERRORES / PUNTUACIÓN`.
+  transparencias, junto al desglose `TIEMPO / ERRORES`.
 
 ### OPERACIONES
 
@@ -162,7 +163,7 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
   escribe de memoria. El cliente no recibe el enunciado mientras escribe.
 - Cada cifra rechazada suma 5 segundos a la puntuación; tres rechazos seguidos
   bastan para que se acepte sola. El informe de cada ronda muestra
-  `TIEMPO / ERRORES / PUNTUACIÓN`.
+  `TIEMPO / ERRORES`.
 
 ## LOS NUEVE MINIJUEGOS
 
@@ -324,7 +325,7 @@ los cuatro clásicos y los nueve minijuegos anteriores.
   tildes/ñ e inglés), con longitud creciente 3 → 8. Cada letra rechazada suma
   5 segundos a la puntuación; tres rechazos seguidos la aceptan automáticamente.
   Sin respuesta se cuenta el plazo completo y un error. El informe de cada
-  ronda muestra el desglose `TIEMPO / ERRORES / PUNTUACIÓN`.
+  ronda muestra el desglose `TIEMPO / ERRORES`.
 - Empate en una ronda → se juega otra con la dificultad subida un nivel.
 - 1–1 en los minijuegos → ronda de desempate de un juego elegido al azar.
 

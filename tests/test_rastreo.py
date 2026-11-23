@@ -38,8 +38,9 @@ def probar_rastreo_no_duplica_ni_pierde_hamsters_tras_200_entradas():
         lado, linea = spawner.siguiente()
         sistema.aplicar(lado, linea)
         pos = hamsters.posiciones(tablero)
-        assert set(pos) == set(HAMSTERS)
-        assert len(set(pos.values())) == 2
+        assert sorted(list(pos) + sistema.fuera) == sorted(HAMSTERS)
+        assert len(set(pos.values())) == len(pos)
+        assert len(tablero.instantanea()) == 12
         finales.update(pos.values())
     assert finales <= set(range(12))
 
@@ -51,20 +52,34 @@ def probar_hamster_no_reaparece_en_casilla_que_dejo_el_otro():
         tablero.inicializar()
         sistema, spawner = MovementSystem(tablero, hamsters), CatSpawner(rng)
         for _ in range(12):
-            antes = hamsters.posiciones(tablero)
+            antes = set(hamsters.posiciones(tablero).values())
             lado, linea = spawner.siguiente()
             resultado = sistema.aplicar(lado, linea)
-            if resultado["reaparecio"] is None:
-                continue
-            casos += 1
-            despues = hamsters.posiciones(tablero)
-            vuelve = next(h for h in HAMSTERS if despues.get(h) == resultado["reaparecio"])
-            otro = next(h for h in HAMSTERS if h != vuelve)
-            assert resultado["reaparecio"] != antes[otro], (
-                f"semilla {semilla}: reapareció en {resultado['reaparecio']}, "
-                f"la casilla que {otro} acababa de dejar"
-            )
+            for celda in resultado["entran"]:
+                casos += 1
+                assert celda not in antes, (
+                    f"semilla {semilla}: reapareció en {celda}, una casilla recién dejada"
+                )
     assert casos > 0
+
+def probar_hamster_pasa_un_turno_fuera_y_al_final_estan_los_dos():
+    for semilla in range(100):
+        plan = GameManager.generar("experto", semilla=semilla)
+        movimientos = plan["movimientos"]
+        assert len(set(plan["final"].values())) == 2
+        for anterior, actual in zip(movimientos, movimientos[1:-1]):
+            # no sale y vuelve en el mismo turno: vuelve en el siguiente
+            assert len(actual["entran"]) == (anterior["salida"] is not None)
+        assert not movimientos[0]["entran"]
+
+def probar_dificultad_sigue_subiendo_despues_de_experto():
+    from juego.rastreo import extra_para_ronda
+    assert [extra_para_ronda("facil", r) for r in range(1, 7)] == [0, 0, 0, 0, 1, 2]
+    assert extra_para_ronda("experto", 50) == 4
+    base = GameManager.generar("experto", semilla=1)["parametros"]
+    mas = GameManager.generar("experto", semilla=1, extra=2)["parametros"]
+    assert mas["entradas"] > base["entradas"]
+    assert mas["intervalo"] < base["intervalo"] and mas["animacion"] < base["animacion"]
 
 def probar_cuatro_niveles_con_parametros_independientes():
     assert tuple(NIVELES) == ("facil", "normal", "dificil", "experto")
@@ -75,6 +90,7 @@ def probar_cuatro_niveles_con_parametros_independientes():
     assert NIVELES["facil"]["animacion"] > NIVELES["experto"]["animacion"]
     for parametros in NIVELES.values():
         assert parametros["entradas"] * parametros["intervalo"] <= parametros["movimiento"]
+        assert parametros["intervalo"] >= 2 * parametros["animacion"]
 
 def probar_nivel_para_ronda_escala_y_top():
     from juego.rastreo import nivel_para_ronda
@@ -153,16 +169,12 @@ def probar_rastreo_deslizamiento_suave_de_linea():
 def probar_rastreo_salida_y_reaparicion_en_el_plan():
     plan = GameManager.generar("normal", semilla=3)
     movimientos = plan["movimientos"]
-    assert any(m["reaparecio"] is not None for m in movimientos)
+    assert any(m["entran"] for m in movimientos)
     for movimiento in movimientos:
-        assert set(movimiento) == {"lado", "linea", "duracion", "salida", "reaparecio"}
-        assert 0 <= movimiento["salida"] < CELDAS
-        assert movimiento["reaparecio"] is None or 0 <= movimiento["reaparecio"] < CELDAS
+        assert set(movimiento) == {"lado", "linea", "duracion", "salida", "entran"}
+        assert movimiento["salida"] is None or 0 <= movimiento["salida"] < CELDAS
+        assert all(0 <= c < CELDAS for c in movimiento["entran"])
         assert "h1" not in movimiento and "h2" not in movimiento
-    primero = next(m for m in movimientos if m["reaparecio"] is not None)
-    assert (primero["lado"], primero["linea"], primero["salida"], primero["reaparecio"]) == (
-        "abajo", 2, 2, 9,
-    )
 
 def probar_rastreo_cliente_animacion_salida_y_reaparicion():
     js = cliente_js()
@@ -171,11 +183,11 @@ def probar_rastreo_cliente_animacion_salida_y_reaparicion():
     assert ".rastreo-hamster" in css and "pointer-events: none" in css
     tablero_css = css[css.index(".rastreo-tablero {"):css.index(".rastreo-casilla {")]
     assert "position: relative" in tablero_css
-    assert "movimiento.salida" in js and "movimiento.reaparecio" in js
+    assert "movimiento.salida" in js and "movimiento.entran" in js
     assert "sprite.animate(" in js
     assert "prefers-reduced-motion" in js
     assert '"salida": movimiento["salida"]' in codigo
-    assert '"reaparecio": movimiento["reaparecio"]' in codigo
+    assert '"entran": movimiento["entran"]' in codigo
 
 def probar_rastreo_cliente_muestra_nivel():
     js = cliente_js()
@@ -195,7 +207,8 @@ def probar_resumen_individual_rastreo_y_final_sin_ids():
     assert "nombreJuego(clave)" in bloque
     detalle = bloque.split("const detalle =", 1)[1].split("return `<div", 1)[0]
     assert 'clave in MINIJUEGOS || clave === "rastreo"' in detalle
-    assert "PRECISIÓN ${dato.precision ?? 0}% · PUNTUACIÓN ${numero(dato.puntuacion)}" in detalle
+    assert "PRECISIÓN ${dato.precision ?? 0}%" in detalle
+    assert "PUNTUACIÓN ${numero(dato.puntuacion)}" not in detalle
     assert "VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}" in detalle
     assert '"final": list(plan["final"].values())' in codigo
     assert '"final": dict(plan["final"])' not in codigo
@@ -234,13 +247,21 @@ async def probar_rastreo_individual_y_seleccion_invalida():
     await cliente.esperar("rastreo_write")
     movimientos = cliente.de_tipo("rastreo_move")
     assert len(movimientos) == NIVELES["facil"]["entradas"]
-    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3]})
-    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3, 3]})
-    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [3, 99]})
+    for malo in (99, -1, True, "3", None):
+        await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "celda": malo})
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"] + 1, "celda": 0})
     assert not cliente.de_tipo("rastreo_feedback")
-    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "respuesta": [0, 1]})
-    await cliente.esperar("rastreo_feedback")
-    assert len(cliente.de_tipo("rastreo_feedback")) == 1
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "celda": 0})
+    primero = await cliente.esperar("rastreo_feedback")
+    assert primero["celda"] == 0 and primero["completa"] is False
+    assert isinstance(primero["acierto"], bool)
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "celda": 0})
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "celda": 1})
+    await cliente.enviar({"type": "rastreo_answer", "ronda": show["ronda"], "celda": 2})
+    resultado = await cliente.esperar("rastreo_result")
+    feedbacks = cliente.de_tipo("rastreo_feedback")
+    assert [f["celda"] for f in feedbacks] == [0, 1] and feedbacks[1]["completa"] is True
+    assert resultado["seleccion"] == [0, 1]
     await cliente.cerrar()
     while servidor.salas:
         await asyncio.sleep(0.01)
@@ -276,8 +297,8 @@ async def probar_rastreo_fiesta_mandos_sin_posiciones():
     host_movimientos = host.de_tipo("rastreo_move")
     mando_movimientos = mando.de_tipo("rastreo_move")
     assert host_movimientos and len(host_movimientos) == len(mando_movimientos)
-    assert all("salida" in m and "reaparecio" in m for m in host_movimientos)
-    assert all("salida" not in m and "reaparecio" not in m for m in mando_movimientos)
+    assert all("salida" in m and "entran" in m for m in host_movimientos)
+    assert all("salida" not in m and "entran" not in m for m in mando_movimientos)
     for mensaje in mando.recibidos:
         if mensaje["type"].startswith("rastreo_"):
             assert "tablero" not in mensaje and "final" not in mensaje
@@ -300,10 +321,10 @@ async def probar_rastreo_dificultad_sube_por_ronda():
     por_ronda = {}
     for m in cliente.de_tipo("rastreo_move"):
         por_ronda.setdefault(m["ronda"], []).append(m)
+    # Pasado experto sigue sumando dos entradas por ronda.
     assert [len(por_ronda[r]) for r in range(1, RONDAS_RASTREO + 1)] == [
-        NIVELES[n]["entradas"] for n in
-        ("facil", "normal", "dificil", "experto", "experto", "experto")
-    ]
+        NIVELES[n]["entradas"] for n in ("facil", "normal", "dificil", "experto")
+    ] + [NIVELES["experto"]["entradas"] + 2, NIVELES["experto"]["entradas"] + 4]
     await cliente.cerrar()
     while servidor.salas:
         await asyncio.sleep(0.01)
@@ -328,7 +349,7 @@ async def probar_rastreo_fiesta_escalera_desde_base():
     for mensaje in mando.recibidos:
         if mensaje["type"].startswith("rastreo_"):
             assert "tablero" not in mensaje and "final" not in mensaje
-            assert "salida" not in mensaje and "reaparecio" not in mensaje
+            assert "salida" not in mensaje and "entran" not in mensaje
             assert "h1" not in mensaje and "h2" not in mensaje
     for cliente in (host, mando):
         await cliente.cerrar()
@@ -341,6 +362,8 @@ async def main():
     probar_desplazamientos_en_los_cuatro_lados()
     probar_rastreo_no_duplica_ni_pierde_hamsters_tras_200_entradas()
     probar_hamster_no_reaparece_en_casilla_que_dejo_el_otro()
+    probar_hamster_pasa_un_turno_fuera_y_al_final_estan_los_dos()
+    probar_dificultad_sigue_subiendo_despues_de_experto()
     probar_cuatro_niveles_con_parametros_independientes()
     probar_nivel_para_ronda_escala_y_top()
     probar_seleccion_exige_dos_casillas_distintas()

@@ -348,7 +348,11 @@ function mostrarCuentaPrevia(
   { kicker = "FASE 01 · PREPARA LA MEMORIA", pie = "LA PALABRA APARECERÁ DESPUÉS", glifo = "✎" } = {}
 ) {
   detenerTimers();
-  let restante = Math.max(1, Math.round(msg.segundos || 3));
+  // La cuenta va del 3 al 1: cada número dura `paso` segundos.
+  const paso = Math.max(0.1, Number(msg.paso) || 0.8);
+  const segundos = Math.max(paso, Number(msg.segundos) || 3 * paso);
+  const pasos = Math.max(1, Math.round(segundos / paso));
+  let restante = pasos;
   $("contenido").innerHTML = `<div class="panel panel-escena">
     <p class="kicker">${kicker}</p>
     <div class="cuenta-previa">
@@ -368,7 +372,7 @@ function mostrarCuentaPrevia(
       el.style.animation = "";
     }
     if (restante <= 0) clearInterval(cuentaTimer);
-  }, 1000);
+  }, paso * 1000);
 }
 
 function iniciarCanvasEscritura(opciones) {

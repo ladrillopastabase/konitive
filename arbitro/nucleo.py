@@ -36,7 +36,9 @@ DIFICULTADES_FIESTA = DIFICULTADES
 RONDAS_FIESTA = 5
 RONDAS_FIESTA_MAX = 20
 VICTORIAS_NECESARIAS = 3
-TIEMPO_CUENTA_PREVIA = 0.8
+# La cuenta previa va del 3 al 1, con un paso de 0,8 s por número.
+TIEMPO_PASO_CUENTA = 0.8
+TIEMPO_CUENTA_PREVIA = 2.4
 # Pausa entre la ronda y la siguiente: suficiente para leer el informe sin
 # cortar el ritmo de la partida.
 TIEMPO_RESULTADO = 1.5

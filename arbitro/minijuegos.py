@@ -26,7 +26,7 @@ from arbitro.nucleo import (
 
 # Minijuegos de entrenamiento: la puntuación es tiempo + 5 s por error
 # (menor es mejor). Es el único resultado, también en el podio.
-TIEMPO_CUENTA_MINI = 0.8
+TIEMPO_CUENTA_MINI = 2.4
 TIEMPO_RESPUESTA_MINI = {
     "stroop": 3.0,
     "triangulos": 60.0,
@@ -464,6 +464,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                 {
                     "type": f"{juego}_countdown",
                     "segundos": TIEMPO_CUENTA_MINI,
+                    "paso": nucleo.TIEMPO_PASO_CUENTA,
                     "ronda": ronda,
                     "necesario": total_rondas,
                     "dificultad": reto.get("dificultad", ""),

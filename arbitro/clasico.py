@@ -142,7 +142,13 @@ async def ronda_pajaros(
     sala.evento_respuestas.clear()
 
     # Cuenta previa sin aves ni contador; la observación empieza después.
-    await sala.difundir({"type": "birds_countdown", "segundos": TIEMPO_CUENTA_PREVIA})
+    await sala.difundir(
+        {
+            "type": "birds_countdown",
+            "segundos": TIEMPO_CUENTA_PREVIA,
+            "paso": nucleo.TIEMPO_PASO_CUENTA,
+        }
+    )
     await nucleo.pausa(sala, TIEMPO_CUENTA_PREVIA)
     if sala.cancelada:
         return {}
@@ -251,6 +257,7 @@ async def ronda_escritura(sala: Sala, nivel: int) -> dict[str, float]:
         {
             "type": "word_countdown",
             "segundos": TIEMPO_CUENTA_PREVIA,
+            "paso": nucleo.TIEMPO_PASO_CUENTA,
             "nivel": nivel,
             "marcador": sala.marcador(),
         }

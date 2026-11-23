@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager, nivel_para_ronda
+from juego.rastreo import CELDAS, RONDAS_RASTREO, GameManager, ScoreManager, extra_para_ronda, nivel_para_ronda
 from arbitro import nucleo
 from arbitro.puntuacion import puntuacion
 from arbitro.nucleo import (
@@ -46,7 +46,10 @@ def resumen_rastreo_individual(sala: Sala) -> dict:
 async def manejar_respuesta_rastreo(
     sala: Sala, jugador: Jugador, mensaje: dict
 ) -> None:
-    """Valida la identificación: fase, ronda, mando, dos casillas y una sola vez."""
+    """Una casilla por mensaje: fase, ronda, mando, rango y sin repetir.
+
+    Cada toque recibe al instante si había un hámster; al segundo, la
+    respuesta queda cerrada."""
     if sala.fase != "rastreo" or sala.datos.get("momento_respuesta") is None:
         return
     if sala.modo == "fiesta" and jugador.rol != "mando":
@@ -56,31 +59,31 @@ async def manejar_respuesta_rastreo(
     if jugador.id in sala.respuestas:
         return
 
-    respuesta = mensaje.get("respuesta")
-    if not isinstance(respuesta, (list, tuple)) or len(respuesta) != 2:
+    celda = mensaje.get("celda")
+    if isinstance(celda, bool) or not isinstance(celda, int) or not 0 <= celda < CELDAS:
         return
-    if any(
-        isinstance(celda, bool)
-        or not isinstance(celda, int)
-        or not 0 <= celda < CELDAS
-        for celda in respuesta
-    ):
+    elegidas = sala.datos.setdefault("elegidas", {}).setdefault(jugador.id, [])
+    if celda in elegidas:
         return
-    if respuesta[0] == respuesta[1]:
-        return
+    elegidas.append(celda)
 
-    seleccion = (respuesta[0], respuesta[1])
-    evaluacion = ScoreManager.evaluar(seleccion, sala.datos["plan"]["final"])
-    sala.respuestas[jugador.id] = (seleccion, time.monotonic())
+    final = sala.datos["plan"]["final"]
+    evaluacion = ScoreManager.evaluar(tuple(elegidas), final)
+    completa = len(elegidas) == 2
+    if completa:
+        sala.respuestas[jugador.id] = (tuple(elegidas), time.monotonic())
     await jugador.enviar(
         {
             "type": "rastreo_feedback",
             "pid": jugador.id,
-            "acepta": evaluacion["aciertos"] == 2,
+            "celda": celda,
+            "acierto": celda in final.values(),
+            "completa": completa,
             "aciertos": evaluacion["aciertos"],
-            "precision": evaluacion["precision"],
         }
     )
+    if not completa:
+        return
     if sala.modo == "fiesta":
         # La pantalla ve quién terminó, nunca qué casillas eligió.
         await emitir_progreso_vivo(
@@ -129,7 +132,9 @@ async def bucle_rastreo(sala: Sala) -> None:
             if sala.cancelada:
                 return
             dificultad = nivel_para_ronda(dificultad_base, ronda)
-            plan = GameManager.generar(dificultad)
+            plan = GameManager.generar(
+                dificultad, extra=extra_para_ronda(dificultad_base, ronda)
+            )
             parametros = plan["parametros"]
             sala.datos.update(
                 {
@@ -137,6 +142,7 @@ async def bucle_rastreo(sala: Sala) -> None:
                     "plan": plan,
                     "dificultad": dificultad,
                     "momento_respuesta": None,
+                    "elegidas": {},
                 }
             )
             sala.respuestas = {}
@@ -151,6 +157,7 @@ async def bucle_rastreo(sala: Sala) -> None:
                 {
                     "type": "rastreo_countdown",
                     "segundos": nucleo.TIEMPO_CUENTA_PREVIA,
+                    "paso": nucleo.TIEMPO_PASO_CUENTA,
                     "ronda": ronda,
                     "necesario": rondas,
                     "dificultad": dificultad,
@@ -197,7 +204,7 @@ async def bucle_rastreo(sala: Sala) -> None:
                         "linea": movimiento["linea"],
                         "duracion": movimiento["duracion"],
                         "salida": movimiento["salida"],
-                        "reaparecio": movimiento["reaparecio"],
+                        "entran": movimiento["entran"],
                     },
                     {
                         "type": "rastreo_move",
@@ -239,7 +246,11 @@ async def bucle_rastreo(sala: Sala) -> None:
             for jugador in jugadores_:
                 pid = jugador.id
                 respuesta = sala.respuestas.get(pid)
-                seleccion = respuesta[0] if respuesta else ()
+                # Si se acabó el tiempo con una sola casilla, esa también cuenta.
+                seleccion = (
+                    respuesta[0] if respuesta
+                    else tuple(sala.datos["elegidas"].get(pid, ()))
+                )
                 evaluacion = ScoreManager.evaluar(seleccion, plan["final"])
                 acierto_ronda = evaluacion["aciertos"]
                 fin = respuesta[1] if respuesta else ahora

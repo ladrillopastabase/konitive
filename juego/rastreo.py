@@ -1,9 +1,9 @@
 """Tablero y movimientos del minijuego «Rastreo de Hámsters».
 
-El tablero es fijo de 3 filas por 4 columnas y siempre está lleno: diez gatos
-y dos hámsters. Cada entrada empuja una línea completa hacia el lado opuesto;
-si el gato expulsado era un hámster, este reaparece en otra celda que no sea
-la del otro hámster.
+El tablero es de 3 filas por 4 columnas: diez gatos y dos hámsters. Cada
+entrada empuja una línea completa hacia el lado opuesto; si lo expulsado era
+un hámster, pasa un turno fuera y vuelve en otra celda en la entrada
+siguiente. Al terminar siempre están los dos.
 """
 from __future__ import annotations
 
@@ -48,29 +48,31 @@ class HamsterManager:
         return halladas
 
     def regenerar(
-        self, tablero: BoardManager, vedadas: set[int] | None = None
+        self, tablero: BoardManager, hamster: str, vedadas: set[int] | None = None
     ) -> int:
-        """Reintroduce al hámster expulsado sin pisar al otro.
+        """Reintroduce un hámster que estaba fuera sin pisar al otro.
 
-        ``vedadas`` incluye la casilla que el otro hámster ocupaba antes del
-        desplazamiento: aunque ya la haya dejado, el sprite que vuelve a entrar
+        ``vedadas`` incluye las casillas que los hámsters ocupaban antes del
+        desplazamiento y la línea que se está moviendo: el sprite que vuelve
         no debe aparecer justo donde el otro acababa de estar.
         """
-        posiciones = self.posiciones(tablero)
-        vuelve = next(h for h in HAMSTERS if h not in posiciones)
-        otro = next(h for h in HAMSTERS if h != vuelve)
-        excluidas = {posiciones[otro]} | (vedadas or set())
+        excluidas = set(self.posiciones(tablero).values()) | (vedadas or set())
         destino = self.rng.choice([i for i in range(CELDAS) if i not in excluidas])
-        tablero.set(destino, vuelve)
+        tablero.set(destino, hamster)
         return destino
 
 
 class MovementSystem:
+    """Desplaza líneas. Un hámster expulsado queda fuera un turno entero y
+    vuelve en la entrada siguiente; en la última vuelve en el mismo turno,
+    para que al final siempre estén los dos."""
+
     def __init__(self, tablero: BoardManager, hamsters: HamsterManager) -> None:
         self.tablero = tablero
         self.hamsters = hamsters
+        self.fuera: list[str] = []
 
-    def aplicar(self, lado: str, linea: int) -> dict:
+    def aplicar(self, lado: str, linea: int, ultimo: bool = False) -> dict:
         if lado == "izquierda":
             indices = [linea * COLUMNAS + c for c in range(COLUMNAS)]
         elif lado == "derecha":
@@ -84,27 +86,26 @@ class MovementSystem:
 
         entrada, salida = indices[0], indices[-1]
         expulsado = self.tablero.get(salida)
-        vedadas: set[int] = set()
-        if expulsado in HAMSTERS:
-            vedadas = {
-                indice
-                for h, indice in self.hamsters.posiciones(self.tablero).items()
-                if h != expulsado
-            }
+        vedadas = set(self.hamsters.posiciones(self.tablero).values()) | set(indices)
         for i in range(len(indices) - 1, 0, -1):
             self.tablero.set(indices[i], self.tablero.get(indices[i - 1]))
         self.tablero.set(entrada, "G")
 
-        reaparecio = None
+        # Vuelven los que salieron el turno anterior (no el recién expulsado).
+        vuelven = self.fuera
+        self.fuera = []
         if expulsado in HAMSTERS:
-            reaparecio = self.hamsters.regenerar(self.tablero, vedadas)
+            self.fuera.append(expulsado)
+        if ultimo:
+            vuelven, self.fuera = vuelven + self.fuera, []
+        entran = [self.hamsters.regenerar(self.tablero, h, vedadas) for h in vuelven]
 
         return {
             "lado": lado,
             "linea": linea,
             "entrada": entrada,
-            "salida": salida,
-            "reaparecio": reaparecio,
+            "salida": salida if expulsado in HAMSTERS else None,
+            "entran": entran,
         }
 
 
@@ -121,31 +122,39 @@ class CatSpawner:
 RONDAS_RASTREO = 6
 NIVEL_ORDEN = ("facil", "normal", "dificil", "experto")
 
-# observación y movimiento en segundos; animación es la duración de cada entrada
+# observación y movimiento en segundos; animación es la duración de cada
+# entrada. El hámster que sale o vuelve tarda el doble: intervalo >= 2 × animación.
 NIVELES = {
     "facil": {
         "observacion": 6.0, "movimiento": 6.0, "entradas": 4,
-        "intervalo": 1.5, "animacion": 0.45,
+        "intervalo": 1.5, "animacion": 0.55,
     },
     "normal": {
         "observacion": 5.0, "movimiento": 8.0, "entradas": 6,
-        "intervalo": 1.3, "animacion": 0.35,
+        "intervalo": 1.3, "animacion": 0.45,
     },
     "dificil": {
         "observacion": 4.0, "movimiento": 10.0, "entradas": 9,
-        "intervalo": 1.1, "animacion": 0.25,
+        "intervalo": 1.1, "animacion": 0.38,
     },
     "experto": {
         "observacion": 3.0, "movimiento": 12.0, "entradas": 12,
-        "intervalo": 1.0, "animacion": 0.18,
+        "intervalo": 1.0, "animacion": 0.32,
     },
 }
+EXTRA_MAXIMO = 4  # rondas más allá de experto que siguen endureciendo
 
 
 def nivel_para_ronda(base: str, ronda: int) -> str:
     """Nivel de una ronda: escalera desde ``base``, con tope en experto."""
     indice = NIVEL_ORDEN.index(base) if base in NIVEL_ORDEN else 0
     return NIVEL_ORDEN[min(len(NIVEL_ORDEN) - 1, indice + max(0, ronda - 1))]
+
+
+def extra_para_ronda(base: str, ronda: int) -> int:
+    """Rondas jugadas ya en experto: cada una suma entradas y velocidad."""
+    indice = NIVEL_ORDEN.index(base) if base in NIVEL_ORDEN else 0
+    return min(EXTRA_MAXIMO, max(0, indice + ronda - len(NIVEL_ORDEN)))
 
 
 class DifficultyManager:
@@ -191,8 +200,15 @@ class ScoreManager:
 class GameManager:
     """Plan de una ronda: observación, entradas y posiciones finales."""
 
-    def __init__(self, nivel: str = "normal", semilla: int | None = None) -> None:
+    def __init__(
+        self, nivel: str = "normal", semilla: int | None = None, extra: int = 0
+    ) -> None:
         self.parametros = dict(DifficultyManager.obtener(nivel))
+        if extra:
+            factor = 0.9 ** extra
+            self.parametros["entradas"] += 2 * extra
+            self.parametros["intervalo"] = round(self.parametros["intervalo"] * factor, 2)
+            self.parametros["animacion"] = round(self.parametros["animacion"] * factor, 2)
         rng = random.Random(semilla)
         self.tablero = BoardManager(rng)
         self.hamsters = HamsterManager(rng)
@@ -216,15 +232,16 @@ class GameManager:
             self.final = dict(self.hamsters.posiciones(self.tablero))
             return None
         lado, linea = self.spawner.siguiente()
-        resultado = self.movimiento.aplicar(lado, linea)
-        # La pantalla necesita por dónde se va el hámster expulsado y dónde
-        # reaparece; nunca el id interno, que no cruza la capa de juego.
+        ultimo = self._entradas + 1 == self.parametros["entradas"]
+        resultado = self.movimiento.aplicar(lado, linea, ultimo)
+        # La pantalla necesita por dónde se va un hámster y dónde vuelven los
+        # que estaban fuera; nunca el id interno, que no cruza la capa de juego.
         entrada = {
             "lado": lado,
             "linea": linea,
             "duracion": self.parametros["animacion"],
             "salida": resultado["salida"],
-            "reaparecio": resultado["reaparecio"],
+            "entran": resultado["entran"],
         }
         self.movimientos.append(entrada)
         self._entradas += 1
@@ -233,8 +250,10 @@ class GameManager:
         return dict(entrada)
 
     @classmethod
-    def generar(cls, nivel: str = "normal", semilla: int | None = None) -> dict:
-        partida = cls(nivel, semilla)
+    def generar(
+        cls, nivel: str = "normal", semilla: int | None = None, extra: int = 0
+    ) -> dict:
+        partida = cls(nivel, semilla, extra)
         while partida.fase_actual() != "final":
             partida.avanzar()
         return {

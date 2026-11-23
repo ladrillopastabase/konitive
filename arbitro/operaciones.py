@@ -108,6 +108,7 @@ async def bucle_operaciones(sala: Sala) -> None:
                 {
                     "type": "operacion_countdown",
                     "segundos": TIEMPO_CUENTA_PREVIA,
+                    "paso": nucleo.TIEMPO_PASO_CUENTA,
                     "ronda": ronda,
                     "necesario": rondas,
                     "dificultad": operacion["dificultad"],

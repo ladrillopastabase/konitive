@@ -39,10 +39,10 @@ de cambiar algo, otra vez.
 4. El árbitro mide el tiempo, calcula `puntuacion()` y guarda
    `sala.ultimas_puntuaciones`, que FIESTA suma al podio.
 
-El ritmo vive en el servidor: las cuentas previas duran 0,8 s
-(`nucleo.TIEMPO_CUENTA_PREVIA`, `cajas.TIEMPO_CUENTA_CAJAS` y
-`minijuegos.TIEMPO_CUENTA_MINI`) y el informe de cada ronda se muestra 1,5 s
-(`nucleo.TIEMPO_RESULTADO`).
+El ritmo vive en el servidor: la cuenta previa es 3-2-1 con un paso de 0,8 s
+(`nucleo.TIEMPO_PASO_CUENTA`; el total está en `TIEMPO_CUENTA_PREVIA`,
+`cajas.TIEMPO_CUENTA_CAJAS` y `minijuegos.TIEMPO_CUENTA_MINI`) y el informe de
+cada ronda se muestra 1,5 s (`nucleo.TIEMPO_RESULTADO`).
 
 En el cliente, `manejar()` (en `app.js`) atiende los mensajes de sala, y el
 `default` busca en `MENSAJES[msg.type]`, que llenan los archivos de `juegos/`.

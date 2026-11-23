@@ -1,4 +1,4 @@
-/* Desglose único de las 13 pruebas: solo tiempo, errores y puntuación. */
+/* Desglose único de las 13 pruebas: tiempo y errores; la puntuación va aparte. */
 (function () {
   function numero(valor) {
     const n = Number(valor);
@@ -11,6 +11,6 @@
   globalThis.textoDesglose = function textoDesglose(dato) {
     const d = dato || {};
     const tiempo = d.tiempo ?? d.tiempo_total;
-    return `TIEMPO ${numero(tiempo)} s · ERRORES ${numero(d.errores)} · PUNTUACIÓN ${numero(d.puntuacion)}`;
+    return `TIEMPO ${numero(tiempo)} s · ERRORES ${numero(d.errores)}`;
   };
 })();

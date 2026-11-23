@@ -689,7 +689,7 @@ function mostrarResumenIndividual(msg) {
     .map((clave) => {
       const dato = resumen[clave] || {};
       const detalle = clave in MINIJUEGOS || clave === "rastreo"
-        ? `PRECISIÓN ${dato.precision ?? 0}% · PUNTUACIÓN ${numero(dato.puntuacion)}`
+        ? `PRECISIÓN ${dato.precision ?? 0}%`
         : `VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}` +
           (dato.puntuacion != null ? ` · ${textoDesglose(dato)}` : "");
       return `<div class="puntaje">
@@ -707,10 +707,14 @@ function mostrarResumenIndividual(msg) {
     </div>
     <p class="pista">${escapeHtml(msg.nombre || "JUGADOR")}, completaste ${orden.length} prueba(s).</p>
     <div class="puntajes">${tarjetas}</div>
-    <div class="puntaje" style="margin-top:10px">
+    ${
+      orden.length > 1
+        ? `<div class="puntaje" style="margin-top:10px">
       <div class="numero">${numero(msg.total)}</div>
       <div class="quien">PUNTUACIÓN TOTAL · MENOR ES MEJOR</div>
-    </div>
+    </div>`
+        : ""
+    }
     <div class="diploma-acciones">
       <button class="boton oscuro chico" id="btn-otra-individual">REPETIR</button>
       <button class="boton rojo chico" id="btn-volver-individual">VOLVER AL INICIO</button>

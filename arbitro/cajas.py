@@ -23,7 +23,7 @@ from arbitro.nucleo import (
 
 # Cuenta Cajas: modo propio, fuera de JUEGOS para no alterar el mejor-de-3.
 RONDAS_CAJAS = 10
-TIEMPO_CUENTA_CAJAS = 0.8
+TIEMPO_CUENTA_CAJAS = 2.4
 TIEMPO_RESPUESTA_CAJAS = 10
 
 
@@ -112,6 +112,7 @@ async def bucle_cajas(sala: Sala) -> None:
                 {
                     "type": "cajas_countdown",
                     "segundos": TIEMPO_CUENTA_CAJAS,
+                    "paso": nucleo.TIEMPO_PASO_CUENTA,
                     "ronda": ronda,
                     "necesario": rondas,
                     "dificultad": pila["dificultad"],

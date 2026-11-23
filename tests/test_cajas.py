@@ -174,6 +174,13 @@ async def jugar_fiesta_dos_mandos():
             total = sum(sum(fila) for fila in shows[-1]["alturas"])
             for mando in mandos:
                 show = mando.de_tipo("cajas_show")
+                # El mando puede ir un mensaje por detrás del anfitrión.
+                for _ in range(200):
+                    if len(show) >= vistos_show:
+                        break
+                    await asyncio.sleep(0.01)
+                    show = mando.de_tipo("cajas_show")
+                assert len(show) >= vistos_show, (len(show), vistos_show)
                 assert "alturas" not in show[vistos_show - 1]
         hides = host.de_tipo("cajas_hide")
         if len(hides) > vistos_hide:

@@ -25,11 +25,12 @@ def probar_aves_no_repiten_la_cantidad_anterior() -> None:
     print("Aves: se evita repetir la cantidad de la ronda anterior")
 
 
-def probar_cuentas_previas_son_rapidas() -> None:
-    assert nucleo.TIEMPO_CUENTA_PREVIA == 0.8
-    assert cajas.TIEMPO_CUENTA_CAJAS == 0.8
-    assert minijuegos.TIEMPO_CUENTA_MINI == 0.8
-    print("Cuentas previas: 0,8 s en clásicos, cajas y minijuegos")
+def probar_cuentas_previas_son_tres_pasos_de_0_8() -> None:
+    assert nucleo.TIEMPO_CUENTA_PREVIA == 2.4
+    assert cajas.TIEMPO_CUENTA_CAJAS == 2.4
+    assert minijuegos.TIEMPO_CUENTA_MINI == 2.4
+    assert nucleo.TIEMPO_PASO_CUENTA == 0.8
+    print("Cuentas previas: 3, 2, 1 a 0,8 s por paso")
 
 
 def probar_resultados_no_frenan_la_partida() -> None:
@@ -40,7 +41,7 @@ def probar_resultados_no_frenan_la_partida() -> None:
 def main() -> None:
     probar_aves_varian_entre_rondas()
     probar_aves_no_repiten_la_cantidad_anterior()
-    probar_cuentas_previas_son_rapidas()
+    probar_cuentas_previas_son_tres_pasos_de_0_8()
     probar_resultados_no_frenan_la_partida()
     print("OK - Ritmo")
 
