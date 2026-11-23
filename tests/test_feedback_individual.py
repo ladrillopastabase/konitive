@@ -30,9 +30,9 @@ SECRETOS = ("alturas", "total", "visibles", "esperado", "aves", "jugadores", "de
 PROHIBIDAS = (
     "PUNTOS TOTALES", "<b>${msg.puntos} PUNTOS</b>", 'case "mis_puntos"',
     '"konitive_cajas_record"', '"konitive_operaciones_record"',
-    "msg.puntos > anterior", "fila.puntos",
+    "msg.puntos > anterior", "fila.puntos", "MENOR ES MEJOR",
 )
-NECESARIAS = ('case "mi_puntuacion"', "puntuacion_juego", "PUNTUACIÓN TOTAL · MENOR ES MEJOR")
+NECESARIAS = ('case "mi_puntuacion"', "puntuacion_juego", "PUNTUACIÓN TOTAL")
 
 
 def probar_cliente_solo_tiempo() -> None:

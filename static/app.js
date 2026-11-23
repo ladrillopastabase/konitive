@@ -695,7 +695,7 @@ function mostrarResumenIndividual(msg) {
       return `<div class="puntaje">
         <div class="numero">${numero(dato.puntuacion)}</div>
         <div class="desglose">${detalle}</div>
-        <div class="quien">${nombreJuego(clave)} · MENOR ES MEJOR</div>
+        <div class="quien">${nombreJuego(clave)}</div>
       </div>`;
     })
     .join("");
@@ -711,7 +711,7 @@ function mostrarResumenIndividual(msg) {
       orden.length > 1
         ? `<div class="puntaje" style="margin-top:10px">
       <div class="numero">${numero(msg.total)}</div>
-      <div class="quien">PUNTUACIÓN TOTAL · MENOR ES MEJOR</div>
+      <div class="quien">PUNTUACIÓN TOTAL</div>
     </div>`
         : ""
     }

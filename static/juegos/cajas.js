@@ -203,7 +203,7 @@ function mostrarResultadoCajas(msg) {
       <div class="puntaje ${acierto ? "ganador" : ""}">
         <div class="numero">${numero(propio.puntuacion)}</div>
         <div class="desglose">${detalle}</div>
-        <div class="quien">PUNTUACIÓN ACUMULADA · MENOR ES MEJOR</div>
+        <div class="quien">PUNTUACIÓN ACUMULADA</div>
       </div>
     </div>
     ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}
