@@ -195,7 +195,7 @@ def probar_resumen_individual_rastreo_y_final_sin_ids():
     assert "nombreJuego(clave)" in bloque
     detalle = bloque.split("const detalle =", 1)[1].split("return `<div", 1)[0]
     assert 'clave in MINIJUEGOS || clave === "rastreo"' in detalle
-    assert "PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}" in detalle
+    assert "PRECISIÓN ${dato.precision ?? 0}% · PUNTUACIÓN ${numero(dato.puntuacion)}" in detalle
     assert "VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}" in detalle
     assert '"final": list(plan["final"].values())' in codigo
     assert '"final": dict(plan["final"])' not in codigo

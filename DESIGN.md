@@ -225,7 +225,7 @@ Las esquinas son rectas (`border-radius: 0`) en botones, inputs, paneles, ticket
 ### Fila de podio
 
 - Papel claro, borde de 2px, sombra `3px 3px 0` de papel oscuro; el primer puesto sube a borde y sombra rojos de 3px y 4px.
-- Puesto en display de 24px, nombre en negrita, Brain Age en display de 22px, movimiento en mono verde si sube y rosa si baja.
+- Puesto en display de 24px, nombre en negrita, puntuación en display de 22px, movimiento en mono verde si sube y rosa si baja.
 
 ## Do's and Don'ts
 

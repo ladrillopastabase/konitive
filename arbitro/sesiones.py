@@ -66,7 +66,7 @@ async def bucle_individual(sala: Sala) -> None:
                 "resumen": sala.resultados_individual,
                 "orden": sala.juegos_individual,
                 "total": sum(
-                    dato.get("brain_age", 0.0)
+                    dato.get("puntuacion", 0.0)
                     for dato in sala.resultados_individual.values()
                 ),
             }

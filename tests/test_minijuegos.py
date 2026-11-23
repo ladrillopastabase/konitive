@@ -1,7 +1,7 @@
 """Pruebas de integración de los ocho minijuegos de Konitive.
 
 Se juega cada prueba en INDIVIDUAL respondiendo siempre bien (así se comprueba
-el cálculo del Brain Age y la precisión) y se hace una FIESTA con dos mandos
+el cálculo dla puntuación y la precisión) y se hace una FIESTA con dos mandos
 para verificar que la pantalla no puntúa, conserva el estímulo grande (salvo
 Stroop, que se borra) y los secretos no se filtran a los celulares.
 
@@ -22,7 +22,7 @@ import servidor
 import arbitro.minijuegos as mini_arbitro
 from arbitro import nucleo
 from arbitro.minijuegos import exposicion_stroop
-from arbitro.puntuacion import brain_age
+from arbitro.puntuacion import puntuacion
 from juego.minijuegos import (
     JUEGOS_MINI,
     NOMBRES_MINI,
@@ -206,7 +206,7 @@ async def jugar_individual(juego: str) -> None:
     dato = resumen["resumen"][juego]
     assert dato["precision"] == 100 and dato["aciertos"] == RONDAS_MINI[juego], dato
     assert dato["rondas"] == RONDAS_MINI[juego] and dato["errores"] == 0, dato
-    assert dato["brain_age"] >= 0 and dato["tiempo_promedio"] >= 0, dato
+    assert dato["puntuacion"] >= 0 and dato["tiempo_promedio"] >= 0, dato
     assert resumen["orden"] == [juego], resumen
     assert not cliente.de_tipo(f"{juego}_over"), "INDIVIDUAL no debe enviar cierre de juego"
 
@@ -233,7 +233,7 @@ async def jugar_individual(juego: str) -> None:
     await cliente.cerrar()
     while servidor.salas:
         await asyncio.sleep(0.01)
-    print(f"  {NOMBRES_MINI[juego]}: {RONDAS_MINI[juego]} rondas correctas, Brain Age {dato['brain_age']}")
+    print(f"  {NOMBRES_MINI[juego]}: {RONDAS_MINI[juego]} rondas correctas, puntuación {dato['puntuacion']}")
 
 
 async def jugar_fiesta(juego: str) -> None:
@@ -329,8 +329,8 @@ async def jugar_fiesta(juego: str) -> None:
     assert all("reto" in r for r in resultados_pantalla), resultados_pantalla
 
     podio = await host.esperar("podium_update")
-    assert host_id not in podio["brain_age_juego"], podio
-    assert set(podio["brain_age_juego"]) == ids_mandos, podio
+    assert host_id not in podio["puntuacion_juego"], podio
+    assert set(podio["puntuacion_juego"]) == ids_mandos, podio
     await host.esperar("back_to_selector")
     for mando in mandos:
         await mando.esperar("back_to_selector")
@@ -405,8 +405,8 @@ async def jugar_individual_sin_responder() -> None:
         resumen = await cliente.esperar("individual_summary", timeout=20)
         dato = resumen["resumen"][juego]
         assert dato["errores"] == RONDAS_MINI[juego], dato
-        penalizado = brain_age(dato["tiempo_total"], dato["errores"])
-        assert dato["brain_age"] >= penalizado - 0.05, (dato, penalizado)
+        penalizado = puntuacion(dato["tiempo_total"], dato["errores"])
+        assert dato["puntuacion"] >= penalizado - 0.05, (dato, penalizado)
         assert "puntos" not in dato, dato
     finally:
         mini_arbitro.TIEMPO_RESPUESTA_MINI[juego] = plazo_original
@@ -417,8 +417,8 @@ async def jugar_individual_sin_responder() -> None:
 
 
 async def main() -> None:
-    assert brain_age(10.0, 0) == 10.0
-    assert brain_age(10.0, 2) == 20.0, "5 s por error"
+    assert puntuacion(10.0, 0) == 10.0
+    assert puntuacion(10.0, 2) == 20.0, "5 s por error"
     print("Individual:")
     for juego in JUEGOS_MINI:
         await jugar_individual(juego)

@@ -32,7 +32,7 @@ PROHIBIDAS = (
     '"konitive_cajas_record"', '"konitive_operaciones_record"',
     "msg.puntos > anterior", "fila.puntos",
 )
-NECESARIAS = ('case "mi_brain_age"', "brain_age_juego", "BRAIN AGE TOTAL · MENOR ES MEJOR")
+NECESARIAS = ('case "mi_puntuacion"', "puntuacion_juego", "PUNTUACIÓN TOTAL · MENOR ES MEJOR")
 
 
 def probar_cliente_solo_tiempo() -> None:

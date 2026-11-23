@@ -20,7 +20,7 @@ let esMando = false;
 let juegoFiesta = null;
 let inviteUrl = "";
 let podioActual = [];
-let miBrainAge = null;
+let miPuntuacion = null;
 let animacion = null;
 let cuentaTimer = null;
 let avisoTimer = null;
@@ -558,7 +558,7 @@ function tablaClasificacion(filas, resaltarId = yoId) {
       (fila, i) =>
         `<div class="fila"><span class="puesto">${i + 1}.</span>` +
         `<span class="quien">${nombreHtml(fila.nombre || "JUGADOR", fila.id === resaltarId ? " · TÚ" : "")}</span>` +
-        `<span class="puntos">${fila.brain_age ?? 0}</span></div>`
+        `<span class="puntos">${numero(fila.puntuacion)}</span></div>`
     )
     .join("")}</div>`;
 }

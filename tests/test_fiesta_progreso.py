@@ -27,7 +27,7 @@ nucleo.pausa = pausa_corta
 URL = levantar_servidor()
 CLAVES_AJENAS = (
     "marcador", "conteos", "confirmados", "podio", "antes", "despues",
-    "puntos_juego", "brain_age_juego",
+    "puntos_juego", "puntuacion_juego",
 )
 
 
@@ -76,13 +76,13 @@ async def main():
     assert podio["nombre_juego"] == "HÁMSTERS", podio
     for mando in mandos:
         assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")
-        propio = await mando.esperar("mi_brain_age")
+        propio = await mando.esperar("mi_puntuacion")
         pid = mando.recibidos[0]["id"]
-        assert propio["brain_age"] == podio["brain_age_juego"][pid], propio
+        assert propio["puntuacion"] == podio["puntuacion_juego"][pid], propio
         assert propio["puesto"] in (1, 2), propio
         assert propio["total"] == 2, propio
         assert propio["juego"] == "pajaros", propio
-        assert "despues" not in propio and "brain_age_juego" not in propio, propio
+        assert "despues" not in propio and "puntuacion_juego" not in propio, propio
         assert "puntos" not in propio, propio
         await mando.esperar("back_to_selector")
     await host.esperar("back_to_selector")
@@ -122,11 +122,11 @@ async def main():
     assert show_stroop.get("palabra") not in texto, (show_stroop, texto)
 
     podio2 = await host.esperar("podium_update")
-    acumulado = {f["id"]: f["brain_age"] for f in podio2["despues"]}
+    acumulado = {f["id"]: f["puntuacion"] for f in podio2["despues"]}
     for mando in mandos:
-        await mando.esperar("mi_brain_age", desde=1)
-        assert len(mando.de_tipo("mi_brain_age")) == 2
-        assert mando.de_tipo("mi_brain_age")[-1]["brain_age"] == acumulado[
+        await mando.esperar("mi_puntuacion", desde=1)
+        assert len(mando.de_tipo("mi_puntuacion")) == 2
+        assert mando.de_tipo("mi_puntuacion")[-1]["puntuacion"] == acumulado[
             mando.recibidos[0]["id"]
         ]
     await host.enviar({"type": "finish_fiesta"})
@@ -137,19 +137,19 @@ async def main():
         assert podio_celular["final"] is True, podio_celular
         assert len(podio_celular["filas"]) == 2, podio_celular
         assert {f["id"] for f in podio_celular["filas"]} == set(acumulado)
-        assert "brain_age_juego" not in podio_celular, podio_celular
+        assert "puntuacion_juego" not in podio_celular, podio_celular
         assert all("puntos" not in fila for fila in podio_celular["filas"])
         await mando.esperar("fin_fiesta")
 
     js = cliente_js()
-    assert 'case "mi_brain_age"' in js
+    assert 'case "mi_puntuacion"' in js
     assert 'case "podio_mando"' in js
 
     for cliente in (host, *mandos):
         await cliente.cerrar()
     await asyncio.sleep(0.1)
     assert not servidor.salas, f"Quedaron salas abiertas: {list(servidor.salas)}"
-    print("OK - Brain Age propio y podio final en el mando; secretos solo en pantalla")
+    print("OK - Puntuación propia y podio final en el mando; secretos solo en pantalla")
 
 
 if __name__ == "__main__":

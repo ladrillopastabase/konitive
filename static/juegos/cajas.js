@@ -201,9 +201,9 @@ function mostrarResultadoCajas(msg) {
     </div>
     <div class="puntajes" style="width:100%">
       <div class="puntaje ${acierto ? "ganador" : ""}">
-        <div class="numero">${propio.brain_age ?? 0}</div>
+        <div class="numero">${numero(propio.puntuacion)}</div>
         <div class="desglose">${detalle}</div>
-        <div class="quien">BRAIN AGE ACUMULADO · MENOR ES MEJOR</div>
+        <div class="quien">PUNTUACIÓN ACUMULADA · MENOR ES MEJOR</div>
       </div>
     </div>
     ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}

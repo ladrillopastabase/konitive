@@ -198,17 +198,17 @@ function iniciarEscritura() {
   });
 }
 
-function cajasPuntajes(brainAges, ganador, desglose) {
+function cajasPuntajes(puntuaciones, ganador, desglose) {
   return Object.keys(marcador.pajaros || {})
     .map((id) => {
       const gana = id === ganador && !modoPractica;
       const dato = desglose[id];
       const detalle =
-        dato && dato.brain_age != null
+        dato && dato.puntuacion != null
           ? `<div class="desglose">${textoDesglose(dato)}</div>`
           : "";
       return `<div class="puntaje ${gana ? "ganador" : ""}">
-        <div class="numero">${brainAges[id] ?? 0}</div>
+        <div class="numero">${numero(puntuaciones[id])}</div>
         ${detalle}
         <div class="quien">${nombreHtml(jugadores[id] || "JUGADOR", id === yoId ? " · TÚ" : "")}</div>
       </div>`;
@@ -246,7 +246,7 @@ function mostrarResultadoRonda(msg) {
       ${ganador ? '<div class="sello-resultado">GANADOR</div>' : ""}
     </div>
     ${protagonista}
-    <div class="puntajes">${cajasPuntajes(msg.brain_age || {}, ganador, msg.desglose || {})}</div>
+    <div class="puntajes">${cajasPuntajes(msg.puntuacion || {}, ganador, msg.desglose || {})}</div>
     <p class="resultado-pie">HÁMSTERS ${msg.marcador.pajaros[yoId] || 0} · PALABRAS ${msg.marcador.escritura[yoId] || 0}</p>
   </div>`;
 }

@@ -8,7 +8,7 @@ from juego.minijuegos import (
     DENOMINACIONES_CLP, JUEGOS_ESCRITURA, MANOS, RONDAS_MINI, generar,
 )
 from arbitro import nucleo
-from arbitro.puntuacion import brain_age
+from arbitro.puntuacion import puntuacion
 from arbitro.nucleo import (
     Jugador,
     Sala,
@@ -24,7 +24,7 @@ from arbitro.nucleo import (
 )
 
 
-# Minijuegos de entrenamiento: el puntaje Brain Age es tiempo + 5 s por error
+# Minijuegos de entrenamiento: la puntuación es tiempo + 5 s por error
 # (menor es mejor). Es el único resultado, también en el podio.
 TIEMPO_CUENTA_MINI = 3.0
 TIEMPO_RESPUESTA_MINI = {
@@ -85,7 +85,7 @@ VISUAL_MINI = {
 # Minijuegos de entrenamiento (Stroop, Triángulos, Relojes, Menor a mayor,
 # Memoria, Vuelto, Sílabas y Piedra papel tijera). Todos comparten este bucle: la fase lleva el
 # nombre del juego, las respuestas incluyen ronda y jugador, y el host mide
-# los tiempos y calcula el puntaje Brain Age.
+# los tiempos y calcula la puntuación.
 # ---------------------------------------------------------------------------
 def marcador_mini(
     sala: Sala, juego: str, tiempos_brain: dict[str, float], ronda: int
@@ -94,7 +94,7 @@ def marcador_mini(
     primero = ids[0] if ids else sala.host_id
     return {
         juego: {
-            pid: {"brain_age": tiempos_brain.get(pid, 0.0), "ronda": ronda} for pid in ids
+            pid: {"puntuacion": tiempos_brain.get(pid, 0.0), "ronda": ronda} for pid in ids
         },
         "nombre": sala.jugadores[primero].nombre
         if primero in sala.jugadores
@@ -391,9 +391,9 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
     tiempos = {pid: 0.0 for pid in ids}
     fallos = {pid: 0 for pid in ids}
     aciertos = {pid: 0 for pid in ids}
-    brain_age_ronda = {pid: 0.0 for pid in ids}
+    puntuacion_ronda = {pid: 0.0 for pid in ids}
     anterior = None
-    sala.ultimos_brain_age = {}
+    sala.ultimas_puntuaciones = {}
     total_rondas = rondas_para(sala, RONDAS_MINI[juego])
     espera = TIEMPO_RESPUESTA_MINI[juego]
 
@@ -406,7 +406,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
             {
                 "type": "match_start",
                 "modo": juego,
-                "marcador": marcador_mini(sala, juego, brain_age_ronda, 0),
+                "marcador": marcador_mini(sala, juego, puntuacion_ronda, 0),
             }
         )
 
@@ -467,7 +467,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                     "ronda": ronda,
                     "necesario": total_rondas,
                     "dificultad": reto.get("dificultad", ""),
-                    "marcador": marcador_mini(sala, juego, brain_age_ronda, ronda),
+                    "marcador": marcador_mini(sala, juego, puntuacion_ronda, ronda),
                 }
             )
             await nucleo.pausa(sala, TIEMPO_CUENTA_MINI)
@@ -494,7 +494,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
             await difundir_roles(sala, completo, para_mandos)
 
             if juego in ("memoria", "stroop"):
-                # La exposición no cuenta para el Brain Age: se cronometra desde
+                # La exposición no cuenta para la puntuación: se cronometra desde
                 # que la palabra (o la grilla) desaparece.
                 duracion = reto["segundos"] if juego == "memoria" else exposicion
                 await nucleo.pausa(sala, duracion)
@@ -546,7 +546,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
             base_write = {
                 "type": f"{juego}_write",
                 "ronda": ronda,
-                "marcador": marcador_mini(sala, juego, brain_age_ronda, ronda),
+                "marcador": marcador_mini(sala, juego, puntuacion_ronda, ronda),
             }
             await difundir_roles(
                 sala,
@@ -608,12 +608,12 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                     aciertos[pid] += 1
                 fallos[pid] += errores
                 tiempos[pid] += tiempo
-                brain_age_ronda[pid] = brain_age(tiempos[pid], fallos[pid])
+                puntuacion_ronda[pid] = puntuacion(tiempos[pid], fallos[pid])
                 por_jugador[pid] = {
                     "acierto": acierto,
                     "errores": errores,
                     "tiempo": round(tiempo, 2),
-                    "brain_age": round(brain_age_ronda[pid], 2),
+                    "puntuacion": round(puntuacion_ronda[pid], 2),
                 }
 
             principal = por_jugador[ids[0]] if ids else {}
@@ -629,7 +629,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                     "reto": datos_para_resultado(juego, reto),
                     "jugadores": por_jugador,
                     "clasificacion": clasificacion(sala),
-                    "marcador": marcador_mini(sala, juego, brain_age_ronda, ronda),
+                    "marcador": marcador_mini(sala, juego, puntuacion_ronda, ronda),
                     **principal,
                 },
                 {"type": f"{juego}_result", "ronda": ronda},
@@ -637,14 +637,14 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
             await nucleo.pausa(sala, 2.5 if ronda < total_rondas else 1.0)
 
         pid = ids[0] if ids else sala.host_id
-        brain = brain_age(tiempos.get(pid, 0.0), fallos.get(pid, 0))
+        brain = puntuacion(tiempos.get(pid, 0.0), fallos.get(pid, 0))
         precision = 100 * aciertos.get(pid, 0) / total_rondas
         promedio = tiempos.get(pid, 0.0) / total_rondas
         resumen = {
             "rondas": total_rondas,
             "aciertos": aciertos.get(pid, 0),
             "errores": fallos.get(pid, 0),
-            "brain_age": round(brain, 2),
+            "puntuacion": round(brain, 2),
             "precision": round(precision, 1),
             "tiempo_promedio": round(promedio, 2),
             "tiempo_total": round(tiempos.get(pid, 0.0), 2),
@@ -655,7 +655,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
             return
 
         sala.fase = "fin"
-        sala.ultimos_brain_age = dict(brain_age_ronda)
+        sala.ultimas_puntuaciones = dict(puntuacion_ronda)
         await sala.difundir(
             {
                 "type": f"{juego}_over",
@@ -664,7 +664,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                     {
                         "id": jugador.id,
                         "nombre": jugador.nombre,
-                        "brain_age": round(brain_age_ronda[jugador.id], 2),
+                        "puntuacion": round(puntuacion_ronda[jugador.id], 2),
                     }
                     for jugador in jugadores_
                 ],

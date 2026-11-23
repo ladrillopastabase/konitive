@@ -152,7 +152,7 @@ async def probar_ppt_individual_responde_bien_y_resume() -> None:
     assert datos["aciertos"] == 10
     assert datos["errores"] == 0
     assert datos["precision"] == 100.0
-    assert datos["brain_age"] >= 0 and "puntos" not in datos
+    assert datos["puntuacion"] >= 0 and "puntos" not in datos
     assert len(cliente.de_tipo("ppt_show")) == 10
     await cliente.cerrar()
     while servidor.salas:

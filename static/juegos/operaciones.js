@@ -44,7 +44,7 @@ function mostrarResultadoOperaciones(msg) {
     (msg.desglose && yoId && msg.desglose[yoId]) || {
       tiempo: 0,
       errores: 0,
-      brain_age: 0,
+      puntuacion: 0,
       correctas: 0,
       automaticas: 0,
     };
@@ -61,9 +61,9 @@ function mostrarResultadoOperaciones(msg) {
     </div>
     <div class="puntajes" style="width:100%">
       <div class="puntaje">
-        <div class="numero">${propio.brain_age ?? 0}</div>
+        <div class="numero">${numero(propio.puntuacion)}</div>
         <div class="desglose">${detalle}</div>
-        <div class="quien">BRAIN AGE ACUMULADO · MENOR ES MEJOR</div>
+        <div class="quien">PUNTUACIÓN ACUMULADA · MENOR ES MEJOR</div>
       </div>
     </div>
     ${modoFiesta ? tablaClasificacion(msg.clasificacion || []) : ""}

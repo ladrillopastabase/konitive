@@ -135,7 +135,7 @@ function mostrarResultadoMini(juego, msg) {
     .map(([id, dato]) => `<div class="puntaje ${id === yoId ? "propio" : ""}">
       <div class="numero">${escapeHtml((jugadores[id] || "JUGADOR").slice(0, 9))}</div>
       <div class="quien">${dato.acierto ? "✔️ CORRECTO" : "❌ ERROR"}</div>
-      <div class="desglose">${dato.tiempo || 0} s · ERRORES ${dato.errores || 0}</div>
+      <div class="desglose">${numero(dato.tiempo)} s · ERRORES ${dato.errores || 0}</div>
     </div>`)
     .join("");
   $("contenido").innerHTML = `<div class="panel resultado">

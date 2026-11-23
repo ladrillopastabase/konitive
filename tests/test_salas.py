@@ -139,11 +139,11 @@ async def probar_cajas_y_podio():
     podio = await host.esperar("podium_update")
     assert podio["nombre_juego"] == "CAJAS"
     assert len(podio["antes"]) == 2
-    assert all(fila["brain_age"] == 0 for fila in podio["antes"])
+    assert all(fila["puntuacion"] == 0 for fila in podio["antes"])
     assert len(podio["despues"]) == 2
-    assert set(podio["brain_age_juego"]) == {
+    assert set(podio["puntuacion_juego"]) == {
         m.recibidos[0]["id"] for m in mandos
-    }, podio["brain_age_juego"]
+    }, podio["puntuacion_juego"]
     for mando in mandos:
         # El podio es cosa de la pantalla: el celular nunca ve tiempos ajenos.
         assert not mando.de_tipo("podium_update"), mando.de_tipo("podium_update")

@@ -1,6 +1,6 @@
 """Puntuación compartida por las 13 pruebas.
 
-Brain Age = tiempo + 5 s por error. Es el único resultado, en segundos y
+puntuación = tiempo + 5 s por error. Es el único resultado, en segundos y
 menor es mejor: no hay escala invertida ni puntos acumulables.
 """
 from __future__ import annotations
@@ -8,9 +8,9 @@ from __future__ import annotations
 SEGUNDOS_POR_ERROR = 5.0
 
 
-def brain_age(tiempo_total: float, errores_totales: int) -> float:
-    """Tiempo total con penalizaciones, en segundos; menor es mejor."""
-    return tiempo_total + SEGUNDOS_POR_ERROR * errores_totales
+def puntuacion(tiempo_total: float, errores_totales: int) -> float:
+    """Tiempo total con penalizaciones, en segundos con dos decimales; menor es mejor."""
+    return round(tiempo_total + SEGUNDOS_POR_ERROR * errores_totales, 2)
 
 
 def fallos_escritura(casillas: list[dict], incompleto: bool = False) -> int:
@@ -34,10 +34,10 @@ def fallos_escritura(casillas: list[dict], incompleto: bool = False) -> int:
     return fallos
 
 
-def sumar_brain_age(
+def sumar_puntuacion(
     historial: list[dict], pid: str, tiempo: float, errores: int
 ) -> float:
-    """Acumula tiempo y errores previos y devuelve el Brain Age total."""
+    """Acumula tiempo y errores previos y devuelve la puntuación total."""
     tiempo_total = tiempo
     errores_totales = errores
     for entrada in historial:
@@ -52,4 +52,4 @@ def sumar_brain_age(
             tiempo_total += tiempos
             if not isinstance(fallos, dict):
                 errores_totales += fallos
-    return brain_age(tiempo_total, errores_totales)
+    return puntuacion(tiempo_total, errores_totales)

@@ -231,7 +231,7 @@ function mostrarResultadoRastreo(msg) {
      <div class="rastreo-metricas">
        <div><b>${Number(msg.aciertos) || 0} / 2</b><span>ACIERTOS</span></div>
        <div><b>${Number(msg.precision) || 0}%</b><span>PRECISIÓN</span></div>
-       <div><b>${Number(msg.brain_age) || 0}</b><span>BRAIN AGE</span></div>
+       <div><b>${numero(msg.puntuacion)}</b><span>PUNTUACIÓN</span></div>
      </div>`,
     "respuesta-rastreo resultado-rastreo"
   );

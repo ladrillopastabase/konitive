@@ -101,7 +101,7 @@ pruebas: los cuatro juegos clásicos y los nueve minijuegos de entrenamiento:
   PAPEL · TIJERA (solo las marcadas). Antes de cada una se ve una pantalla
   «JUEGO 2 / 13» con su nombre.
 - Al terminar la última aparece un **informe final** con una tarjeta por prueba
-  (Brain Age y desglose), la suma total de Brain Age y botones de **REPETIR**
+  (puntuación y desglose), la suma total de puntuación y botones de **REPETIR**
   (misma selección) y **VOLVER AL INICIO**. Durante la secuencia no aparecen los
   informes intermedios de cada juego.
 
@@ -111,13 +111,13 @@ puntuar:
 ### PUNTUACIÓN DE LAS 13 PRUEBAS
 
 Todas —clásicos, CAJAS, OPERACIONES, RASTREO y los nueve minijuegos— usan el
-**Brain Age**: `tiempo total + 5 segundos por error`, en segundos y menor es
+**puntuación**: `tiempo total + 5 segundos por error`, en segundos y menor es
 mejor; no hay escala invertida ni puntos. El podio ordena de menor a mayor
-Brain Age, que es el tiempo acumulado con penalizaciones. Si no se responde a
+puntuación, que es el tiempo acumulado con penalizaciones. Si no se responde a
 tiempo se cuenta el límite completo y **un error**;
 en PALABRAS y OPERACIONES cada carácter rechazado cuenta como un error (tres
 rechazos seguidos = aceptación automática = 15 s). El desglose siempre muestra
-`TIEMPO / ERRORES / BRAIN AGE`; no hay base, bonus de rapidez ni multiplicadores.
+`TIEMPO / ERRORES / PUNTUACIÓN`; no hay base, bonus de rapidez ni multiplicadores.
 
 ### PÁJAROS y PALABRAS
 
@@ -127,7 +127,7 @@ entrenamiento propio. Pájaros muestra de 5 a 18 aves (los dos primeros niveles
 quietos y después saltitos aleatorios); se cuenta con **− / +** o flechas y se
 confirma con **Enter**. Escritura muestra la palabra apenas 0,8 segundos y
 después se escribe de memoria, letra a letra, en el cuaderno de tinta. Cada
-letra rechazada suma 5 segundos al Brain Age.
+letra rechazada suma 5 segundos a la puntuación.
 
 ### CAJAS
 
@@ -145,7 +145,7 @@ que ninguna caja flota.
   izquierda/derecha) y **CONFIRMAR CUENTA** (tecla **Enter**).
 - La racha sigue subiendo la dificultad cada 3 aciertos, pero ya no multiplica
   el resultado. El resultado vuelve a mostrar la pila **tal como se vio**, sin
-  transparencias, junto al desglose `TIEMPO / ERRORES / BRAIN AGE`.
+  transparencias, junto al desglose `TIEMPO / ERRORES / PUNTUACIÓN`.
 
 ### OPERACIONES
 
@@ -159,9 +159,9 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
   **AVANZADO** (7–10). Nunca se repite la misma operación en rondas seguidas.
 - Cuenta atrás de 3 segundos, operación visible 0,9 segundos y después se
   escribe de memoria. El cliente no recibe el enunciado mientras escribe.
-- Cada cifra rechazada suma 5 segundos al Brain Age; tres rechazos seguidos
+- Cada cifra rechazada suma 5 segundos a la puntuación; tres rechazos seguidos
   bastan para que se acepte sola. El informe de cada ronda muestra
-  `TIEMPO / ERRORES / BRAIN AGE`.
+  `TIEMPO / ERRORES / PUNTUACIÓN`.
 
 ## LOS NUEVE MINIJUEGOS
 
@@ -170,9 +170,9 @@ respuesta correcta, cronometra y valida; el celular solo muestra y envía. El
 feedback es **verde** al acertar y **rosa** al fallar, tanto en la pantalla como
 en el mando.
 
-Igual que el resto de pruebas, se miden con el **Brain Age** descrito arriba.
+Igual que el resto de pruebas, se miden con la **puntuación** descrita arriba.
 El informe final muestra además la **precisión** y el **tiempo promedio por
-ronda**. En el podio de FIESTA gana quien acumula el menor Brain Age, y cada
+ronda**. En el podio de FIESTA gana quien acumula la menor puntuación, y cada
 mando ve solo su propio tiempo.
 
 ### STROOP
@@ -234,7 +234,7 @@ número de sílabas.
 idénticos, en cuatro fases: **observación** (memorizas sus casillas),
 **movimiento** (sigues filas y columnas completas que entran por los cuatro
 lados, con las identidades ocultas tras `?`), **identificación** (señalas las
-dos casillas finales) y **resultados** (aciertos, precisión y Brain Age). Cuatro
+dos casillas finales) y **resultados** (aciertos, precisión y puntuación). Cuatro
 niveles: **fácil**, **normal**, **difícil** y **experto**. La dificultad sube un
 nivel por ronda: en INDIVIDUAL las 6 rondas van fácil → normal → difícil →
 experto (y se mantiene experto); en FIESTA el nivel elegido es el punto de
@@ -248,7 +248,7 @@ reciben las posiciones de los hámsters.
 Hay que responder con una mano que gane o que pierda a propósito contra la del
 rival; tocar la mano del rival empataría y cuenta como error, así que nunca es
 la mano correcta. La consigna **PERDER** aparece 2 de cada 3 rondas, así que hay
-que leerla antes de tocar. Se responde en **4 s**, con el mismo Brain Age de los
+que leerla antes de tocar. Se responde en **4 s**, con la misma puntuación de los
 demás minijuegos (`tiempo total + 5 segundos por error`).
 
 ## FIESTA
@@ -274,7 +274,7 @@ los cuatro clásicos y los nueve minijuegos anteriores.
   cancela.
 - Después de cada juego se muestra un **podio animado**: las filas se reordenan
   con una transición y se indica cuántos puestos sube o baja cada jugador y el
-  Brain Age de ese juego. El podio acumula el Brain Age de toda la fiesta.
+  puntuación de ese juego. El podio acumula la puntuación de toda la fiesta.
 - Tras el podio se vuelve al selector y el anfitrión elige el siguiente juego.
   **TERMINAR FIESTA** muestra el **podio final** con los campeones.
 
@@ -313,16 +313,16 @@ los cuatro clásicos y los nueve minijuegos anteriores.
   mínimo (nunca saltan todos). El número se elige con los botones **− / +** o
   con las **flechas arriba/abajo**; no hay campo de texto. Durante la respuesta
   se ve en vivo la cuenta de ambos jugadores y quién ya confirmó. El resultado
-  muestra el total en grande; el Brain Age suma el tiempo de la ronda y 5 s si
+  muestra el total en grande; la puntuación suma el tiempo de la ronda y 5 s si
   el conteo es erróneo o no se confirmó a tiempo.
 - **Escritura**: cuenta atrás de 3 segundos; después la palabra **aparece apenas
   0,8 segundos** y desaparece. Recién entonces se escribe de memoria. El cliente
   no recibe la palabra ni cuántas letras faltan: solo muestra las letras ya
   confirmadas, sin casillas vacías. Misma palabra para ambos (español sin
   tildes/ñ e inglés), con longitud creciente 3 → 8. Cada letra rechazada suma
-  5 segundos al Brain Age; tres rechazos seguidos la aceptan automáticamente.
+  5 segundos a la puntuación; tres rechazos seguidos la aceptan automáticamente.
   Sin respuesta se cuenta el plazo completo y un error. El informe de cada
-  ronda muestra el desglose `TIEMPO / ERRORES / BRAIN AGE`.
+  ronda muestra el desglose `TIEMPO / ERRORES / PUNTUACIÓN`.
 - Empate en una ronda → se juega otra con la dificultad subida un nivel.
 - 1–1 en los minijuegos → ronda de desempate de un juego elegido al azar.
 
@@ -359,6 +359,8 @@ python tests/test_descripciones_individuales.py  # portada real en Chrome headle
 `index.html`.
 
 ## Añadir un juego
+
+Guía detallada (estructura, reglas y recetas, pensada también para agentes de IA): `AGENTS.md`.
 
 1. Una entrada en `juego/catalogo.py` (id, nombre, descripción y dificultades).
    De ahí salen el selector INDIVIDUAL, la lista de FIESTA y los nombres.

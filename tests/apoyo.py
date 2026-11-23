@@ -53,18 +53,40 @@ def cliente_js() -> str:
     return "\n".join((RAIZ / "static" / ruta).read_text(encoding="utf-8") for ruta in rutas)
 
 
+def revisar_decimales(valor, ruta="msg") -> None:
+    """Toda puntuación que manda el servidor tiene como mucho dos decimales."""
+    if isinstance(valor, dict):
+        for clave, dato in valor.items():
+            if "puntuacion" in clave and isinstance(dato, float):
+                assert dato == round(dato, 2), f"{ruta}.{clave} = {dato} (más de dos decimales)"
+            if "puntuacion" in clave and isinstance(dato, dict):
+                for pid, numero in dato.items():
+                    if isinstance(numero, float):
+                        assert numero == round(numero, 2), f"{ruta}.{clave}.{pid} = {numero}"
+            revisar_decimales(dato, f"{ruta}.{clave}")
+    elif isinstance(valor, list):
+        for i, dato in enumerate(valor):
+            revisar_decimales(dato, f"{ruta}[{i}]")
+
+
 class Cliente:
     """Jugador simulado: guarda todo lo que recibe y espera mensajes por tipo."""
 
     def __init__(self, ws):
         self.ws = ws
         self.recibidos = []
+        self.error: AssertionError | None = None
         self.tarea = asyncio.create_task(self._leer())
 
     async def _leer(self):
         try:
             async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
+                msg = json.loads(crudo)
+                try:
+                    revisar_decimales(msg)
+                except AssertionError as error:
+                    self.error = self.error or error
+                self.recibidos.append(msg)
         except websockets.ConnectionClosed:
             pass
 
@@ -78,6 +100,8 @@ class Cliente:
         """El último mensaje `tipo` cuando ya llegaron más de `desde`."""
         fin = time.monotonic() + timeout
         while True:
+            if self.error:
+                raise self.error
             encontrados = self.de_tipo(tipo)
             if len(encontrados) > desde:
                 return encontrados[-1]
