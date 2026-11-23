@@ -141,7 +141,8 @@ una sola respuesta compleja, como CAJAS):
   caché.
 - En Windows, los heredocs de bash con tildes se corrompen al pasar por stdin.
   Escribe los scripts de edición en un archivo.
-- `docs/superpowers/` y `.superpowers/` son notas históricas de planificación,
-  no documentación vigente (allí todavía se habla de "Brain Age").
+- `docs/superpowers/archivo/` y `.superpowers/` son notas históricas de
+  planificación, no documentación vigente (allí todavía se habla de "Brain
+  Age"). Para el estado actual, `README.md` y este archivo.
 - La puntuación tiene 2 decimales tanto en el servidor como en `numero()`. Si
   cambias la precisión, cambia los dos y `revisar_decimales` en `tests/apoyo.py`.
