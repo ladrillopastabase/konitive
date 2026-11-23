@@ -17,7 +17,6 @@ from arbitro.nucleo import (
     filas_avance_escritura,
     nombre_de,
     participantes,
-    registrar_resultado_individual,
     ronda_generador,
     rondas_para,
 )
@@ -208,16 +207,12 @@ async def bucle_operaciones(sala: Sala) -> None:
         fallos_totales = errores.get(primero, 0)
         brain_final = brain_age(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
-            registrar_resultado_individual(
-                sala,
-                "operaciones",
-                {
+            sala.resultados_individual["operaciones"] = {
                     "rondas": rondas,
                     "tiempo_total": tiempo_total,
                     "errores": fallos_totales,
                     "brain_age": brain_final,
-                },
-            )
+            }
             return
 
         sala.fase = "fin"

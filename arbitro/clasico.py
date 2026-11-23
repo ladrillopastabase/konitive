@@ -26,7 +26,6 @@ from arbitro.nucleo import (
     nombre_de,
     participantes,
     reconocer_en_hilo,
-    registrar_resultado_individual,
     ronda_generador,
     rondas_para,
     trazos_validos,
@@ -170,7 +169,6 @@ async def ronda_pajaros(sala: Sala, nivel: int) -> dict[str, float]:
     momento = sala.datos["momento_respuesta"]
     tiempos: dict[str, float] = {}
     errores: dict[str, int] = {}
-    brains: dict[str, float] = {}
     brain_age_ronda: dict[str, float] = {}
     desglose: dict[str, dict] = {}
     for jugador in participantes(sala):
@@ -188,7 +186,6 @@ async def ronda_pajaros(sala: Sala, nivel: int) -> dict[str, float]:
         )
         tiempos[pid] = tiempo
         errores[pid] = fallos
-        brains[pid] = brain
         brain_age_ronda[pid] = brain
         desglose[pid] = {
             "tiempo": tiempo,
@@ -196,7 +193,7 @@ async def ronda_pajaros(sala: Sala, nivel: int) -> dict[str, float]:
             "brain_age": brain,
         }
     sala.datos.update(
-        {"tiempo": tiempos, "errores": errores, "brain_age": brains, "desglose": desglose}
+        {"tiempo": tiempos, "errores": errores, "brain_age": brain_age_ronda, "desglose": desglose}
     )
     return brain_age_ronda
 
@@ -286,7 +283,6 @@ async def ronda_escritura(sala: Sala, nivel: int) -> dict[str, float]:
     desglose: dict[str, dict] = {}
     tiempos: dict[str, float] = {}
     errores: dict[str, int] = {}
-    brains: dict[str, float] = {}
     for jugador in participantes(sala):
         progreso = jugador.progreso
         if not progreso or progreso.get("inicio") is None:
@@ -318,7 +314,6 @@ async def ronda_escritura(sala: Sala, nivel: int) -> dict[str, float]:
         )
         tiempos[pid] = tiempo
         errores[pid] = fallos
-        brains[pid] = brain
         brain_age_ronda[pid] = brain
         desglose[pid] = {
             "tiempo": tiempo,
@@ -329,7 +324,7 @@ async def ronda_escritura(sala: Sala, nivel: int) -> dict[str, float]:
         }
 
     sala.datos.update(
-        {"tiempo": tiempos, "errores": errores, "brain_age": brains, "desglose": desglose}
+        {"tiempo": tiempos, "errores": errores, "brain_age": brain_age_ronda, "desglose": desglose}
     )
     return brain_age_ronda
 
@@ -342,10 +337,8 @@ def _brain_age_acumulado(
     errores = 0
     mejor: float | None = None
     for entrada in sala.historial.get(juego, []):
-        tiempos = entrada.get("tiempo", {})
-        fallos = entrada.get("errores", {})
-        parcial_tiempo = tiempos.get(pid, 0.0) if isinstance(tiempos, dict) else 0.0
-        parcial_errores = fallos.get(pid, 0) if isinstance(fallos, dict) else 0
+        parcial_tiempo = entrada["tiempo"].get(pid, 0.0)
+        parcial_errores = entrada["errores"].get(pid, 0)
         tiempo += parcial_tiempo
         errores += parcial_errores
         parcial = brain_age(parcial_tiempo, parcial_errores)
@@ -370,17 +363,7 @@ def resumen_clasico_individual(sala: Sala, juego: str) -> dict:
 async def enviar_resumen_practica(sala: Sala) -> None:
     """Entrega un informe de la tanda de práctica y espera a seguir o salir."""
     pid = next(iter(sala.jugadores), sala.host_id)
-    resumen: dict[str, dict] = {}
-    for juego in JUEGOS:
-        tiempo, errores, total, mejor = _brain_age_acumulado(sala, juego, pid)
-        resumen[juego] = {
-            "rondas": sala.rondas_juego[juego],
-            "victorias": sala.ganadas[juego].get(pid, 0),
-            "mejor": mejor,
-            "tiempo_total": tiempo,
-            "errores": errores,
-            "brain_age": total,
-        }
+    resumen = {juego: resumen_clasico_individual(sala, juego) for juego in JUEGOS}
 
     sala.fase = "resumen"
     sala.evento_continuar.clear()
@@ -427,8 +410,8 @@ async def bucle_partida(sala: Sala) -> None:
             juego = elegir_juego(sala)
             if juego is None:
                 if sala.secuencia_individual:
-                    registrar_resultado_individual(
-                        sala, sala.juego_individual, resumen_clasico_individual(sala, sala.juego_individual)
+                    sala.resultados_individual[sala.juego_individual] = (
+                        resumen_clasico_individual(sala, sala.juego_individual)
                     )
                     return
                 if sala.practica:
@@ -483,7 +466,6 @@ async def bucle_partida(sala: Sala) -> None:
             sala.historial[juego].append(
                 {
                     "nivel": nivel,
-                    "brain_age": dict(brain_age_ronda),
                     "tiempo": dict(sala.datos.get("tiempo", {})),
                     "errores": dict(sala.datos.get("errores", {})),
                     "brain_age": dict(sala.datos.get("brain_age", {})),

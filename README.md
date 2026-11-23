@@ -146,7 +146,6 @@ que ninguna caja flota.
 - La racha sigue subiendo la dificultad cada 3 aciertos, pero ya no multiplica
   el resultado. El resultado vuelve a mostrar la pila **tal como se vio**, sin
   transparencias, junto al desglose `TIEMPO / ERRORES / BRAIN AGE`.
-- La mejor marca se guarda en `localStorage` (`konitive_cajas_record_brain_age`).
 
 ### OPERACIONES
 
@@ -163,7 +162,6 @@ escribir el resultado **cifra a cifra** en el mismo cuaderno de tinta.
 - Cada cifra rechazada suma 5 segundos al Brain Age; tres rechazos seguidos
   bastan para que se acepte sola. El informe de cada ronda muestra
   `TIEMPO / ERRORES / BRAIN AGE`.
-- La mejor marca se guarda en `localStorage` (`konitive_operaciones_record_brain_age`).
 
 ## LOS NUEVE MINIJUEGOS
 

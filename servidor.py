@@ -26,8 +26,7 @@ from arbitro.nucleo import (
     Jugador,
     Sala,
     SalirSala,
-    difundir_a_mandos,
-    difundir_a_pantalla,
+    difundir_rol,
     emitir_podium,
     emitir_progreso_vivo,
     filas_avance_respuestas,
@@ -60,6 +59,12 @@ MAX_SALAS = 200
 TIPOS_RESPUESTA_MINI = {
     **{f"{j}_answer": j for j in JUEGOS_MINI if j not in JUEGOS_ESCRITURA},
     **{f"{j}_digit": j for j in JUEGOS_ESCRITURA},
+}
+# Botón «otra tanda» de los modos de una persona: mensaje -> (modo, bucle).
+REINICIOS = {
+    "cajas_restart": ("cajas", bucle_cajas),
+    "operaciones_restart": ("operaciones", bucle_operaciones),
+    "individual_restart": ("individual", bucle_individual),
 }
 PUERTO = 6767
 app = FastAPI(title="Konitive - Laboratorio de Atención")
@@ -111,9 +116,10 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
             sala.tarea = None
             sala.fase = "lobby"
             if sala.modo == "fiesta":
-                jugadores = {j.id: j.nombre for j in sala.jugadores.values()}
-                await difundir_a_pantalla(
+                jugadores = sala.nombres()
+                await difundir_rol(
                     sala,
+                    "pantalla",
                     {
                         "type": "back_to_lobby",
                         "marcador": sala.marcador(),
@@ -121,8 +127,9 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
                         "host": sala.host_id,
                     },
                 )
-                await difundir_a_mandos(
+                await difundir_rol(
                     sala,
+                    "mando",
                     {
                         "type": "back_to_lobby",
                         "jugadores": jugadores,
@@ -132,36 +139,24 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
             else:
                 await sala.difundir({"type": "back_to_lobby", "marcador": sala.marcador()})
 
-    elif tipo == "bird_tally" and sala.fase in ("pajaros", "desempate"):
+    elif tipo in ("bird_tally", "bird_answer") and sala.fase in ("pajaros", "desempate"):
         if sala.modo == "fiesta" and jugador.rol != "mando":
             return
         conteo = mensaje.get("count")
         token = mensaje.get("token")
+        # Tras confirmar ya no se aceptan cuentas en vivo ni otra respuesta.
         if (
             isinstance(conteo, int)
             and 0 <= conteo <= 200
             and "momento_respuesta" in sala.datos
             and (token is None or token == sala.datos.get("conteo_token"))
             and jugador.id not in sala.conteos_confirmados
-        ):
-            sala.conteos_vivos[jugador.id] = conteo
-            await difundir_conteos(sala)
-
-    elif tipo == "bird_answer" and sala.fase in ("pajaros", "desempate"):
-        if sala.modo == "fiesta" and jugador.rol != "mando":
-            return
-        conteo = mensaje.get("count")
-        token = mensaje.get("token")
-        if (
-            isinstance(conteo, int)
-            and 0 <= conteo <= 200
-            and "momento_respuesta" in sala.datos
-            and (token is None or token == sala.datos.get("conteo_token"))
             and jugador.id not in sala.respuestas
         ):
             sala.conteos_vivos[jugador.id] = conteo
-            sala.conteos_confirmados.add(jugador.id)
-            sala.respuestas[jugador.id] = (conteo, time.monotonic())
+            if tipo == "bird_answer":
+                sala.conteos_confirmados.add(jugador.id)
+                sala.respuestas[jugador.id] = (conteo, time.monotonic())
             await difundir_conteos(sala)
             if len(sala.respuestas) >= len(participantes(sala)):
                 sala.evento_respuestas.set()
@@ -190,13 +185,14 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
             if len(sala.respuestas) >= len(participantes(sala)):
                 sala.evento_respuestas.set()
 
-    elif tipo == "cajas_restart":
-        if sala.modo == "cajas" and sala.fase == "fin" and jugador.id == sala.host_id:
-            sala.tarea = None
+    elif tipo in REINICIOS:
+        modo, bucle = REINICIOS[tipo]
+        if sala.modo == modo and sala.fase == "fin" and jugador.id == sala.host_id:
+            sala.resultados_individual = {}
             sala.cancelada = False
             sala.evento_cancelar.clear()
             sala.fase = "jugando"
-            sala.tarea = lanzar(bucle_cajas(sala))
+            sala.tarea = lanzar(bucle(sala))
 
     elif tipo == "rastreo_answer":
         await manejar_respuesta_rastreo(sala, jugador, mensaje)
@@ -207,31 +203,6 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
     elif tipo in ESCRITURA:
         await procesar_caracter(sala, jugador, mensaje, ESCRITURA[tipo])
 
-    elif tipo == "operaciones_restart":
-        if (
-            sala.modo == "operaciones"
-            and sala.fase == "fin"
-            and jugador.id == sala.host_id
-        ):
-            sala.tarea = None
-            sala.cancelada = False
-            sala.evento_cancelar.clear()
-            sala.fase = "jugando"
-            sala.tarea = lanzar(bucle_operaciones(sala))
-
-    elif tipo == "individual_restart":
-        if (
-            sala.modo == "individual"
-            and sala.fase == "fin"
-            and jugador.id == sala.host_id
-        ):
-            sala.tarea = None
-            sala.resultados_individual = {}
-            sala.cancelada = False
-            sala.evento_cancelar.clear()
-            sala.fase = "jugando"
-            sala.tarea = lanzar(bucle_individual(sala))
-
     elif tipo == "continue_practice":
         if sala.practica and sala.fase == "resumen":
             sala.fase = "jugando"
@@ -241,7 +212,6 @@ async def manejar_mensaje(sala: Sala, jugador: Jugador, mensaje: dict) -> None:
         raise SalirSala()
 
 
-JUEGOS_INDIVIDUAL = JUEGOS_FIESTA  # mismos juegos y mismo orden de portada
 # Mensaje inicial -> (opciones de la sala, bucle que arranca solo o None si hay lobby).
 SALAS_NUEVAS = {
     "create": ({}, None),
@@ -318,7 +288,7 @@ async def websocket(ws: WebSocket) -> None:
                     await ws.send_json({"type": "error", "mensaje": "Elige al menos un juego"})
                     return
                 # El orden canónico es el de la portada, sin duplicados.
-                seleccion = [j for j in JUEGOS_INDIVIDUAL if j in juegos]
+                seleccion = [j for j in JUEGOS_FIESTA if j in juegos]
                 if not seleccion:
                     await ws.send_json(
                         {"type": "error", "mensaje": "Elige al menos un juego válido"}
@@ -340,7 +310,7 @@ async def websocket(ws: WebSocket) -> None:
                     "type": "room_created",
                     "codigo": codigo,
                     "id": jugador.id,
-                    "jugadores": {j.id: j.nombre for j in sala.jugadores.values()},
+                    "jugadores": sala.nombres(),
                     "host": sala.host_id,
                     "modo": sala.modo,
                     "practica": sala.practica,
@@ -372,7 +342,7 @@ async def websocket(ws: WebSocket) -> None:
                     "type": "room_joined",
                     "codigo": codigo,
                     "id": jugador.id,
-                    "jugadores": {j.id: j.nombre for j in sala.jugadores.values()},
+                    "jugadores": sala.nombres(),
                     "host": sala.host_id,
                     "modo": sala.modo,
                     "rol": rol,
@@ -382,7 +352,7 @@ async def websocket(ws: WebSocket) -> None:
             await sala.difundir(
                 {
                     "type": "player_joined",
-                    "jugadores": {j.id: j.nombre for j in sala.jugadores.values()},
+                    "jugadores": sala.nombres(),
                 }
             )
         else:
@@ -394,9 +364,7 @@ async def websocket(ws: WebSocket) -> None:
             if isinstance(datos, dict):
                 await manejar_mensaje(sala, jugador, datos)
 
-    except SalirSala:
-        pass
-    except WebSocketDisconnect:
+    except (SalirSala, WebSocketDisconnect):
         pass
     except Exception:
         traceback.print_exc()
@@ -416,7 +384,7 @@ async def websocket(ws: WebSocket) -> None:
                     if mando_fiesta or sala.fase in ("lobby", "fin", "resumen")
                     else "opponent_left",
                     "nombre": jugador.nombre,
-                    "jugadores": {j.id: j.nombre for j in sala.jugadores.values()},
+                    "jugadores": sala.nombres(),
                 }
             )
             if not sala.jugadores:

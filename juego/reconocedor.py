@@ -38,6 +38,8 @@ def _probabilidades(valores: np.ndarray) -> np.ndarray:
 
 
 class Reconocedor:
+    ETIQUETAS = [chr(65 + i) for i in range(26)]
+
     def __init__(self, ruta_modelo: str | Path = MODELO) -> None:
         self.sesion = ort.InferenceSession(
             str(ruta_modelo), providers=["CPUExecutionProvider"]
@@ -85,16 +87,13 @@ class Reconocedor:
         inicio_y = (LADO_IMAGEN - dibujo_alto) // 2
 
         salida = np.zeros((LADO_IMAGEN, LADO_IMAGEN), dtype=np.float32)
-        for y in range(dibujo_alto):
-            sy = min_y + min(alto - 1, int(y / escala))
-            for x in range(dibujo_ancho):
-                sx = min_x + min(ancho - 1, int(x / escala))
-                salida[inicio_y + y, inicio_x + x] = tinta[sy, sx]
+        sy = min_y + np.minimum(alto - 1, (np.arange(dibujo_alto) / escala).astype(int))
+        sx = min_x + np.minimum(ancho - 1, (np.arange(dibujo_ancho) / escala).astype(int))
+        salida[inicio_y:inicio_y + dibujo_alto, inicio_x:inicio_x + dibujo_ancho] = tinta[np.ix_(sy, sx)]
         return salida
 
-    def _preprocesar(self, trazos: Sequence[Trazo]) -> np.ndarray:
-        tinta = self._rasterizar(trazos)
-        normalizada = self._normalizar(tinta)
+    @staticmethod
+    def _formatear(normalizada: np.ndarray) -> np.ndarray:
         # EMNIST guarda las imágenes transpuestas; sin esto el modelo falla.
         return normalizada.T.reshape(1, 784).astype(np.float32)
 
@@ -104,17 +103,15 @@ class Reconocedor:
         )[0][0]
         probs = _probabilidades(crudos)
         indice = int(np.argmax(probs))
-        return chr(65 + indice), float(probs[indice]), [float(p) for p in probs]
+        return self.ETIQUETAS[indice], float(probs[indice]), [float(p) for p in probs]
 
     def reconocer(self, trazos: Sequence[Trazo]) -> tuple[str, float, list[float]]:
-        """Reconoce una letra a partir de los trazos del canvas del navegador."""
-        return self._inferir(self._preprocesar(trazos))
+        """Reconoce el carácter a partir de los trazos del canvas del navegador."""
+        return self.reconocer_tinta(self._rasterizar(trazos))
 
     def reconocer_tinta(self, tinta: np.ndarray) -> tuple[str, float, list[float]]:
-        """Reconoce una letra desde una matriz 28x28 de tinta (para pruebas)."""
-        return self._inferir(
-            self._normalizar(tinta).T.reshape(1, 784).astype(np.float32)
-        )
+        """Reconoce el carácter desde una matriz 28x28 de tinta (también en pruebas)."""
+        return self._inferir(self._formatear(self._normalizar(tinta)))
 
 
 class ReconocedorDigitos(Reconocedor):
@@ -124,26 +121,11 @@ class ReconocedorDigitos(Reconocedor):
     letras. MNIST no transpone la imagen y su modelo espera ``[1, 1, 28, 28]``.
     """
 
+    ETIQUETAS = [str(i) for i in range(10)]
+
     def __init__(self, ruta_modelo: str | Path = MODELO_DIGITOS) -> None:
         super().__init__(ruta_modelo)
 
-    def _preprocesar(self, trazos: Sequence[Trazo]) -> np.ndarray:
-        tinta = self._rasterizar(trazos)
-        normalizada = self._normalizar(tinta)
+    @staticmethod
+    def _formatear(normalizada: np.ndarray) -> np.ndarray:
         return normalizada.reshape(1, 1, LADO_IMAGEN, LADO_IMAGEN).astype(np.float32)
-
-    def _inferir(self, entrada: np.ndarray) -> tuple[str, float, list[float]]:
-        crudos = self.sesion.run(
-            [self.nombre_salida], {self.nombre_entrada: entrada}
-        )[0][0]
-        probs = _probabilidades(crudos)
-        indice = int(np.argmax(probs))
-        return str(indice), float(probs[indice]), [float(p) for p in probs]
-
-    def reconocer_tinta(self, tinta: np.ndarray) -> tuple[str, float, list[float]]:
-        """Reconoce una cifra desde una matriz 28x28 de tinta (para pruebas)."""
-        return self._inferir(
-            self._normalizar(tinta)
-            .reshape(1, 1, LADO_IMAGEN, LADO_IMAGEN)
-            .astype(np.float32)
-        )

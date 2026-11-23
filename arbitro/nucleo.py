@@ -137,6 +137,9 @@ class Sala:
         for jugador in self.jugadores.values():
             jugador.progreso = {}
 
+    def nombres(self) -> dict[str, str]:
+        return {j.id: j.nombre for j in self.jugadores.values()}
+
     def marcador(self) -> dict:
         ids = [j.id for j in participantes(self)]
         return {
@@ -325,18 +328,11 @@ async def difundir_roles(
         await jugador.enviar(mensaje)
 
 
-async def difundir_a_pantalla(sala: Sala, mensaje: dict) -> None:
-    """En FIESTA los datos compartidos los ve solo la pantalla del anfitrión."""
+async def difundir_rol(sala: Sala, rol: str, mensaje: dict) -> None:
+    """Envía solo a la pantalla o solo a los mandos (nunca marcadores ajenos al celular)."""
     # list(): un mando puede desconectarse mientras se espera un envío.
     for jugador in list(sala.jugadores.values()):
-        if jugador.rol == "pantalla":
-            await jugador.enviar(mensaje)
-
-
-async def difundir_a_mandos(sala: Sala, mensaje: dict) -> None:
-    """Avisos compartidos: el celular nunca recibe el marcador de los demás."""
-    for jugador in list(sala.jugadores.values()):
-        if jugador.rol == "mando":
+        if jugador.rol == rol:
             await jugador.enviar(mensaje)
 
 
@@ -344,8 +340,9 @@ async def emitir_progreso_vivo(
     sala: Sala, juego: str, filas: list[dict], ronda: int | None = None
 ) -> None:
     """Avance por ronda de cada mando: en vivo y solo en la pantalla."""
-    await difundir_a_pantalla(
+    await difundir_rol(
         sala,
+        "pantalla",
         {
             "type": "progreso_vivo",
             "juego": juego,
@@ -450,8 +447,9 @@ async def emitir_podium(
     filas = clasificacion(sala)
     antes = sala.podium_antes
     await enviar_brain_age_propio(sala, filas, final)
-    await difundir_a_pantalla(
+    await difundir_rol(
         sala,
+        "pantalla",
         {
             "type": "podium_final" if final else "podium_update",
             "antes": antes,
@@ -464,10 +462,11 @@ async def emitir_podium(
     )
     if final:
         sala.fase = "fin"
-        await difundir_a_mandos(sala, {"type": "fin_fiesta"})
+        await difundir_rol(sala, "mando", {"type": "fin_fiesta"})
         # Va después del aviso de cierre: el podio es lo último que se ve en el celular.
-        await difundir_a_mandos(
+        await difundir_rol(
             sala,
+            "mando",
             {
                 "type": "podio_mando",
                 "filas": filas,
@@ -484,9 +483,10 @@ async def emitir_podium(
     sala.fase = "lobby"
     sala.juego_fiesta = None
     sala.tarea = None
-    jugadores = {j.id: j.nombre for j in sala.jugadores.values()}
-    await difundir_a_pantalla(
+    jugadores = sala.nombres()
+    await difundir_rol(
         sala,
+        "pantalla",
         {
             "type": "back_to_selector",
             "podio": clasificacion(sala),
@@ -494,15 +494,11 @@ async def emitir_podium(
             "host": sala.host_id,
         },
     )
-    await difundir_a_mandos(
+    await difundir_rol(
         sala,
+        "mando",
         {"type": "back_to_selector", "jugadores": jugadores, "host": sala.host_id},
     )
-
-
-def registrar_resultado_individual(sala: Sala, juego: str, datos: dict) -> None:
-    """Guarda el resultado de un juego de la secuencia individual."""
-    sala.resultados_individual[juego] = datos
 
 
 def trazos_validos(mensaje: dict) -> list[list[tuple[float, float]]]:

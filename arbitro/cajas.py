@@ -16,7 +16,6 @@ from arbitro.nucleo import (
     filas_avance_respuestas,
     nombre_de,
     participantes,
-    registrar_resultado_individual,
     ronda_generador,
     rondas_para,
 )
@@ -229,18 +228,14 @@ async def bucle_cajas(sala: Sala) -> None:
         fallos_totales = errores.get(primero, 0)
         brain_final = brain_age(tiempo_total, fallos_totales)
         if sala.secuencia_individual:
-            registrar_resultado_individual(
-                sala,
-                "cajas",
-                {
+            sala.resultados_individual["cajas"] = {
                     "rondas": rondas,
                     "tiempo_total": tiempo_total,
                     "errores": fallos_totales,
                     "brain_age": brain_final,
                     "aciertos": aciertos.get(primero, 0),
                     "mejor_racha": max(mejor_racha.values(), default=0),
-                },
-            )
+            }
             return
 
         sala.fase = "fin"

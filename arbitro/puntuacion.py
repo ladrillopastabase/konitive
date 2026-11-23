@@ -23,9 +23,7 @@ def fallos_escritura(casillas: list[dict], incompleto: bool = False) -> int:
     for casilla in casillas:
         intentos = casilla.get("intentos", 0)
         motivo = casilla.get("motivo", "")
-        if casilla.get("estado") != "aceptada":
-            fallos += intentos
-        elif motivo == "automatica":
+        if casilla.get("estado") != "aceptada" or motivo == "automatica":
             fallos += intentos
         elif motivo == "primera":
             continue

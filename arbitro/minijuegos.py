@@ -18,7 +18,6 @@ from arbitro.nucleo import (
     esperar,
     participantes,
     reconocer_en_hilo,
-    registrar_resultado_individual,
     ronda_generador,
     rondas_para,
     trazos_validos,
@@ -652,7 +651,7 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
         }
 
         if sala.secuencia_individual:
-            registrar_resultado_individual(sala, juego, resumen)
+            sala.resultados_individual[juego] = resumen
             return
 
         sala.fase = "fin"

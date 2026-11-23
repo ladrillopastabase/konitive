@@ -13,6 +13,20 @@ from arbitro.minijuegos import bucle_minijuego
 from arbitro.rastreo import bucle_rastreo
 
 
+async def jugar(sala: Sala, juego: str) -> None:
+    """Lanza el bucle del juego indicado y espera a que termine."""
+    if juego in JUEGOS:
+        await bucle_partida(sala)
+    elif juego == "cajas":
+        await bucle_cajas(sala)
+    elif juego == "operaciones":
+        await bucle_operaciones(sala)
+    elif juego == "rastreo":
+        await bucle_rastreo(sala)
+    elif juego in JUEGOS_MINI:
+        await bucle_minijuego(sala, juego)
+
+
 async def bucle_individual(sala: Sala) -> None:
     """Juega uno detrás de otro los juegos elegidos y entrega un resumen común."""
     pid = next(iter(sala.jugadores), sala.host_id)
@@ -39,16 +53,7 @@ async def bucle_individual(sala: Sala) -> None:
 
             sala.reiniciar_marcador()
             sala.fase = "jugando"
-            if juego in JUEGOS:
-                await bucle_partida(sala)
-            elif juego == "cajas":
-                await bucle_cajas(sala)
-            elif juego == "operaciones":
-                await bucle_operaciones(sala)
-            elif juego == "rastreo":
-                await bucle_rastreo(sala)
-            elif juego in JUEGOS_MINI:
-                await bucle_minijuego(sala, juego)
+            await jugar(sala, juego)
             if sala.cancelada:
                 return
 
@@ -79,16 +84,7 @@ async def bucle_fiesta(sala: Sala) -> None:
         sala.podium_antes = clasificacion(sala)
         sala.reiniciar_marcador()
         sala.fase = "jugando"
-        if juego in ("pajaros", "escritura"):
-            await bucle_partida(sala)
-        elif juego == "cajas":
-            await bucle_cajas(sala)
-        elif juego == "operaciones":
-            await bucle_operaciones(sala)
-        elif juego == "rastreo":
-            await bucle_rastreo(sala)
-        elif juego in JUEGOS_MINI:
-            await bucle_minijuego(sala, juego)
+        await jugar(sala, juego)
         if sala.cancelada:
             return
         siguiente = juegos[i + 1] if i + 1 < len(juegos) else None

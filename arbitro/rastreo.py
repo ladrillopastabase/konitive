@@ -18,7 +18,6 @@ from arbitro.nucleo import (
     filas_avance_respuestas,
     nombre_de,
     participantes,
-    registrar_resultado_individual,
     rondas_para,
 )
 
@@ -294,7 +293,7 @@ async def bucle_rastreo(sala: Sala) -> None:
 
         resumen = resumen_rastreo_individual(sala)
         if sala.secuencia_individual:
-            registrar_resultado_individual(sala, "rastreo", resumen)
+            sala.resultados_individual["rastreo"] = resumen
             return
 
         sala.fase = "fin"

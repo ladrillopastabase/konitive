@@ -191,7 +191,8 @@ def probar_resumen_individual_rastreo_y_final_sin_ids():
     codigo = (BASE / "arbitro/rastreo.py").read_text(encoding="utf-8")
     inicio = js.index("function mostrarResumenIndividual")
     bloque = js[inicio : js.index("\n  }", inicio)]
-    assert 'rastreo: "RASTREO DE HÁMSTERS"' in bloque
+    assert "NOMBRES_FIESTA[clave]" in bloque
+    assert 'rastreo: "RASTREO DE HÁMSTERS"' in js
     detalle = bloque.split("const detalle =", 1)[1].split("return `<div", 1)[0]
     assert 'JUEGOS_MINI.includes(clave) || clave === "rastreo"' in detalle
     assert "PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}" in detalle
