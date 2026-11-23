@@ -6,13 +6,12 @@ la respuesta correcta.
 """
 from __future__ import annotations
 
+from apoyo import cliente_js, conectar, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
-import threading
 import time
-from pathlib import Path
 
-import uvicorn
 import websockets
 
 import servidor
@@ -25,68 +24,11 @@ async def pausa_corta(sala, segundos):
 
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8771, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8771/ws"
+URL = levantar_servidor()
 CLAVES_AJENAS = (
     "marcador", "conteos", "confirmados", "podio", "antes", "despues",
     "puntos_juego", "brain_age_juego",
 )
-
-
-class Cliente:
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=10):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if encontrados:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def esperar_n(self, tipo, cantidad, timeout=10):
-        fin = time.monotonic() + timeout
-        while len(self.de_tipo(tipo)) < cantidad:
-            assert time.monotonic() < fin, (
-                f"No llegaron {cantidad} x {tipo}. "
-                f"Vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-        return self.de_tipo(tipo)[-1]
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
-
-
-async def conectar(mensaje):
-    cliente = Cliente(await websockets.connect(URL))
-    await cliente.enviar(mensaje)
-    return cliente
 
 
 def sin_datos_ajenos(cliente):
@@ -182,7 +124,7 @@ async def main():
     podio2 = await host.esperar("podium_update")
     acumulado = {f["id"]: f["brain_age"] for f in podio2["despues"]}
     for mando in mandos:
-        await mando.esperar_n("mi_brain_age", 2)
+        await mando.esperar("mi_brain_age", desde=1)
         assert len(mando.de_tipo("mi_brain_age")) == 2
         assert mando.de_tipo("mi_brain_age")[-1]["brain_age"] == acumulado[
             mando.recibidos[0]["id"]
@@ -199,7 +141,7 @@ async def main():
         assert all("puntos" not in fila for fila in podio_celular["filas"])
         await mando.esperar("fin_fiesta")
 
-    js = (Path(__file__).parent / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     assert 'case "mi_brain_age"' in js
     assert 'case "podio_mando"' in js
 

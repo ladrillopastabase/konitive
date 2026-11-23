@@ -30,7 +30,7 @@ Los modelos de reconocimiento ya están incluidos, no hay que descargar nada:
 Para verificarlos:
 
 ```bash
-python test_reconocedor.py
+python tests/test_reconocedor.py
 ```
 
 ## Jugar en local
@@ -292,9 +292,14 @@ los cuatro clásicos y los nueve minijuegos anteriores.
 - **Reconocedores** (`juego/reconocedor.py`): rasterizan los trazos del navegador
   a 28×28, aplican el preprocesado EMNIST (incluido el *transpose*) y usan el
   modelo de letras o el de dígitos según el juego.
-- **Cliente** (`static/`): HTML/CSS/JS sin frameworks. Cuaderno de papel y tinta,
-  canvas para dibujar y para la vista isométrica de cajas, aves en SVG, QR,
-  mandos y podio animado con WAAPI.
+- **Cliente** (`static/`): HTML/CSS/JS sin frameworks, en scripts clásicos que
+  comparten el ámbito global. `/api/catalogo.js` trae el catálogo; `nucleo.js`
+  tiene el estado, la conexión y las piezas comunes (cuenta previa, lienzo de
+  escritura, stepper); `sonido.js` los sonidos; `static/juegos/` un archivo por
+  juego, que se registra con `registrarMensajes` o `registrarMini`; y `app.js`
+  la portada, el lobby, el podio y el despacho de mensajes. Cuaderno de papel y
+  tinta, canvas para dibujar y para la vista isométrica de cajas, hámsters en
+  SVG, QR, mandos y podio animado con WAAPI.
 - **Generadores** (`juego/palabras.py`, `juego/cajas.py`, `juego/operaciones.py`,
   `juego/minijuegos.py`): palabras, mapas de altura de cajas, operaciones de 0 a
   99 y los estímulos de los ocho minijuegos genéricos; el noveno, RASTREO DE
@@ -323,18 +328,44 @@ los cuatro clásicos y los nueve minijuegos anteriores.
 
 ## Pruebas
 
-```bash
-python test_reconocedor.py   # modelos de letras y dígitos
-python test_partida.py       # palabras, conteo en vivo, desglose, desempate y práctica
-python test_cajas.py         # pilas isométricas, puntuación y mandos en fiesta
-python test_operaciones.py   # generación, cifras manuscritas y fiesta sin enunciado
-python test_salas.py         # QR, unión por código, roles, aforo y podio
-python test_individual.py    # uno/varios/todos, orden, resumen y repetición
-python test_silabas.py       # corpus de 63 frases y separación silábica válida
-python test_minijuegos.py    # los ocho minijuegos genéricos en individual y fiesta
-python test_ppt.py           # piedra papel tijera: generador, individual y fiesta
-python test_revision.py      # memoria, vuelto con trampas, envío doble y tope de salas
-python test_rastreo.py       # tablero, fases y fiesta de rastreo de hamsters
+Viven en `tests/`. Todas a la vez, en paralelo (cada una levanta su servidor en
+un puerto libre):
 
-node --check static/app.js   # sintaxis del cliente
+```bash
+python tests/correr.py           # todas, con resumen y código de salida
+python tests/correr.py rastreo   # solo las que contienen "rastreo"
 ```
+
+O una sola:
+
+```bash
+python tests/test_catalogo.py      # catálogo único: bucles, archivos de cliente y <script>
+python tests/test_reconocedor.py   # modelos de letras y dígitos
+python tests/test_partida.py       # palabras, conteo en vivo, desglose, desempate y práctica
+python tests/test_cajas.py         # pilas isométricas, puntuación y mandos en fiesta
+python tests/test_operaciones.py   # generación, cifras manuscritas y fiesta sin enunciado
+python tests/test_salas.py         # QR, unión por código, roles, aforo y podio
+python tests/test_individual.py    # uno/varios/todos, orden, resumen y repetición
+python tests/test_silabas.py       # corpus de 63 frases y separación silábica válida
+python tests/test_minijuegos.py    # los ocho minijuegos genéricos en individual y fiesta
+python tests/test_ppt.py           # piedra papel tijera: generador, individual y fiesta
+python tests/test_revision.py      # memoria, vuelto con trampas, envío doble y tope de salas
+python tests/test_rastreo.py       # tablero, fases y fiesta de rastreo de hamsters
+python tests/test_descripciones_individuales.py  # portada real en Chrome headless
+```
+
+`tests/apoyo.py` reúne lo común: el servidor de prueba, el jugador simulado
+(`Cliente`) y `cliente_js()`, que junta el JavaScript del cliente en el orden de
+`index.html`.
+
+## Añadir un juego
+
+1. Una entrada en `juego/catalogo.py` (id, nombre, descripción y dificultades).
+   De ahí salen el selector INDIVIDUAL, la lista de FIESTA y los nombres.
+2. Su generador en `juego/` y su bucle en `arbitro/`, registrado en
+   `arbitro.sesiones.BUCLES`. Un minijuego genérico solo necesita su generador
+   en `juego/minijuegos.py`.
+3. Su archivo en `static/juegos/` con su `<script>` en `index.html` (antes de
+   `app.js`). Un minijuego llama a `registrarMini(id, {...})`; otro juego, a
+   `registrarMensajes({...})` con sus tipos de mensaje.
+4. `python tests/test_catalogo.py` dice qué pieza falta.

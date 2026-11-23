@@ -4,6 +4,8 @@ Llama al árbitro directamente, sin servidor ni sockets.
 """
 from __future__ import annotations
 
+import apoyo  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import time
 

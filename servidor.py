@@ -9,6 +9,7 @@ El arbitraje de cada juego vive en el paquete ``arbitro``.
 from __future__ import annotations
 
 import io
+import json
 import time
 import traceback
 import uuid
@@ -20,6 +21,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from qrcode.image.svg import SvgPathImage
 
+from juego.catalogo import CATALOGO
 from juego.minijuegos import JUEGOS_ESCRITURA, JUEGOS_MINI
 from arbitro.nucleo import (
     JUEGOS_FIESTA,
@@ -244,6 +246,16 @@ async def salud() -> dict:
         "modelo": "emnist_model.onnx",
         "digitos": "mnist_model.onnx",
     }
+
+
+# El catálogo llega como script clásico antes que el cliente: así CATALOGO ya
+# existe cuando se pintan el selector y la lista de FIESTA, sin fetch.
+CATALOGO_JS = f"const CATALOGO = {json.dumps(CATALOGO, ensure_ascii=False)};\n"
+
+
+@app.get("/api/catalogo.js")
+async def catalogo_js() -> Response:
+    return Response(CATALOGO_JS, media_type="text/javascript; charset=utf-8")
 
 
 @app.get("/api/red")

@@ -10,12 +10,12 @@ como en el resto de las pruebas del proyecto.
 """
 from __future__ import annotations
 
+from apoyo import Cliente, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
-import threading
 import time
 
-import uvicorn
 import websockets
 
 import servidor
@@ -49,13 +49,7 @@ async def pausa_corta(sala, segundos):
 
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8770, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8770/ws"
+URL = levantar_servidor()
 TOTALES_SILABAS = {f["frase"]: len(f["silabas"]) for f in cargar_frases()}
 ESCRITURA = ("triangulos",)
 SOLO_PANTALLA = ("stroop", "triangulos", "relojes", "vuelto", "silabas")
@@ -66,41 +60,6 @@ VISUAL_MINI = {
     "vuelto": ("producto", "precio_texto", "pago_texto"),
     "silabas": ("frase",),
 }
-
-
-class Cliente:
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=10, desde=0):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if len(encontrados) > desde:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
 
 
 def codigo_digito(digito: int) -> list:

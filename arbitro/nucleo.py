@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from fastapi import WebSocket
 
-from juego.minijuegos import JUEGOS_MINI, NOMBRES_MINI
+from juego.catalogo import DIFICULTADES, IDS, NOMBRES, POR_ID
 from juego.reconocedor import Reconocedor, ReconocedorDigitos
 
 
@@ -26,25 +26,13 @@ CLAVES_SOLO_PANTALLA = frozenset(
 
 
 JUEGOS = ("pajaros", "escritura")
-# Fiesta: los juegos clásicos más los nueve minijuegos de entrenamiento.
-# El host es la pantalla y hay hasta 8 mandos. «ppt» cierra la lista para fijar
-# el orden de portada; se filtra de JUEGOS_MINI antes de añadirlo para que no
-# aparezca dos veces.
-JUEGOS_FIESTA = ("pajaros", "escritura", "cajas", "operaciones") + tuple(
-    j for j in JUEGOS_MINI if j != "ppt"
-) + ("rastreo", "ppt")
-NOMBRES_JUEGOS = {
-    "pajaros": "HÁMSTERS",
-    "escritura": "PALABRAS",
-    "cajas": "CAJAS",
-    "operaciones": "OPERACIONES",
-    "rastreo": "RASTREO DE HÁMSTERS",
-    **NOMBRES_MINI,
-}
+# Fiesta e INDIVIDUAL ofrecen todo el catálogo, en su orden de portada.
+JUEGOS_FIESTA = IDS
+NOMBRES_JUEGOS = NOMBRES
 TIEMPO_PODIO = 4.5
 # Fiesta: el anfitrión elige en el lobby qué juegos se encadenan y, para cada
 # uno, cuántas rondas y con qué dificultad.
-DIFICULTADES_FIESTA = ("facil", "normal", "dificil")
+DIFICULTADES_FIESTA = DIFICULTADES
 RONDAS_FIESTA = 5
 RONDAS_FIESTA_MAX = 20
 VICTORIAS_NECESARIAS = 3
@@ -204,10 +192,9 @@ def leer_ajustes_fiesta(juegos, ajustes) -> tuple[list[str], dict[str, dict]]:
         dificultad = dato.get("dificultad")
         limpios[juego] = {
             "rondas": max(1, min(RONDAS_FIESTA_MAX, rondas)),
-            "dificultad": dificultad if (
-                dificultad in DIFICULTADES_FIESTA
-                or (juego == "rastreo" and dificultad == "experto")
-            ) else "facil",
+            "dificultad": dificultad
+            if dificultad in POR_ID[juego]["dificultades"]
+            else "facil",
         }
     return lista, limpios
 

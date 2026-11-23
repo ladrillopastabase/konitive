@@ -6,14 +6,12 @@ canal privado por jugador, sin filtrar el total, las aves ni los demás.
 """
 from __future__ import annotations
 
+from apoyo import cliente_js, conectar, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
-import subprocess
-import threading
 import time
-from pathlib import Path
 
-import uvicorn
 import websockets
 
 import servidor
@@ -26,88 +24,23 @@ async def pausa_corta(sala, segundos):
 
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8772, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8772/ws"
+URL = levantar_servidor()
 SECRETOS = ("alturas", "total", "visibles", "esperado", "aves", "jugadores", "despues")
-RAIZ = Path(__file__).resolve().parent
 
-CODIGO_CLIENTE = r"""
-const fs = require('fs');
-const js = fs.readFileSync('static/app.js', 'utf8');
-const prohibidas = [
-  'PUNTOS TOTALES', '<b>${msg.puntos} PUNTOS</b>', 'case "mis_puntos"',
-  '"konitive_cajas_record"', '"konitive_operaciones_record"',
-  'msg.puntos > anterior', 'fila.puntos'
-];
-for (const texto of prohibidas) {
-  if (js.includes(texto)) throw new Error('Queda código de puntos: ' + texto);
-}
-const necesarias = [
-  'case "mi_brain_age"', 'brain_age_juego', 'BRAIN AGE TOTAL · MENOR ES MEJOR'
-];
-for (const texto of necesarias) {
-  if (!js.includes(texto)) throw new Error('Falta el contrato de tiempo: ' + texto);
-}
-process.stdout.write('OK');
-"""
+PROHIBIDAS = (
+    "PUNTOS TOTALES", "<b>${msg.puntos} PUNTOS</b>", 'case "mis_puntos"',
+    '"konitive_cajas_record"', '"konitive_operaciones_record"',
+    "msg.puntos > anterior", "fila.puntos",
+)
+NECESARIAS = ('case "mi_brain_age"', "brain_age_juego", "BRAIN AGE TOTAL · MENOR ES MEJOR")
 
 
 def probar_cliente_solo_tiempo() -> None:
-    resultado = subprocess.run(
-        ["node", "-e", CODIGO_CLIENTE],
-        cwd=RAIZ,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert resultado.returncode == 0, resultado.stderr
-    assert resultado.stdout == "OK", resultado.stdout
-
-
-class Cliente:
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=10):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if encontrados:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
-
-
-async def conectar(mensaje):
-    cliente = Cliente(await websockets.connect(URL))
-    await cliente.enviar(mensaje)
-    return cliente
+    js = cliente_js()
+    for texto in PROHIBIDAS:
+        assert texto not in js, f"Queda código de puntos: {texto}"
+    for texto in NECESARIAS:
+        assert texto in js, f"Falta el contrato de tiempo: {texto}"
 
 
 async def main():
@@ -180,9 +113,9 @@ async def main():
     await host.enviar({"type": "finish_fiesta"})
     await host.esperar("podium_final")
 
-    js = (Path(__file__).parent / "static/app.js").read_text(encoding="utf-8")
-    assert 'case "cajas_feedback"' in js
-    assert 'case "round_feedback"' in js
+    js = cliente_js()
+    assert "cajas_feedback:" in js
+    assert "round_feedback:" in js
     # Ni barras de espera inútiles ni un "CORRECTO" global en la pantalla.
     assert "barraDuracion" not in js
     assert "RONDA CORRECTA" not in js

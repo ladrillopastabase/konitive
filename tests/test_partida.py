@@ -15,13 +15,13 @@ conteo en vivo y que el total de escritura coincida con su desglose.
 """
 from __future__ import annotations
 
+from apoyo import levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
 import re
-import threading
 import time
 
-import uvicorn
 import websockets
 
 import servidor
@@ -46,13 +46,7 @@ async def pausa_corta(sala, segundos):
 nucleo.reconocedor = ReconocedorFalso()
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8765, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8765/ws"
+URL = levantar_servidor()
 
 
 def codigo_letra(letra: str) -> list:

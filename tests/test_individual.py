@@ -9,12 +9,12 @@ pausas se acortan, igual que en el resto de las pruebas.
 """
 from __future__ import annotations
 
+from apoyo import Cliente, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
-import threading
 import time
 
-import uvicorn
 import websockets
 
 import servidor
@@ -45,13 +45,7 @@ async def pausa_corta(sala, segundos):
 
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8769, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8769/ws"
+URL = levantar_servidor()
 TODOS = ["pajaros", "escritura", "cajas", "operaciones"]
 FINALES = ("match_over", "practice_summary", "cajas_over", "operacion_over")
 
@@ -70,43 +64,6 @@ def resultado_de(texto: str) -> str:
     a, operador, b = texto.split(" ")
     a, b = int(a), int(b)
     return str({"+": a + b, "−": a - b, "×": a * b}[operador])
-
-
-class Cliente:
-    """Guarda todos los mensajes para inspeccionarlos sin carreras."""
-
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=8, desde=0):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if len(encontrados) > desde:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
 
 
 async def jugar_secuencia(juegos: list[str]) -> Cliente:

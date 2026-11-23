@@ -4,6 +4,8 @@ Parte de una función pura y crece con pruebas de integración por juego.
 """
 from __future__ import annotations
 
+import apoyo  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import contextlib
 import time

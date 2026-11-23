@@ -1,15 +1,16 @@
+from apoyo import RAIZ, Cliente, cliente_js, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
 import random
-from pathlib import Path
 
 from juego.minijuegos import JUEGOS_MINI
 from arbitro.nucleo import JUEGOS_FIESTA, NOMBRES_JUEGOS
+from juego.catalogo import POR_ID
 from juego.rastreo import (
     CELDAS, HAMSTERS, LADOS, NIVELES, RONDAS_RASTREO,
     BoardManager, CatSpawner, DifficultyManager, GameManager,
     HamsterManager, MovementSystem, ScoreManager, SelectionManager,
 )
 
-BASE = Path(__file__).parent
+BASE = RAIZ
 
 def probar_tablero_arranca_con_10_gatos_y_2_hamsters():
     tablero = BoardManager(random.Random(7))
@@ -117,16 +118,16 @@ def probar_rastreo_registrado_como_13a_prueba():
     assert NOMBRES_JUEGOS["rastreo"] == "RASTREO DE HÁMSTERS"
 
 def probar_rastreo_contrato_cliente():
-    html = (BASE / "static/index.html").read_text(encoding="utf-8")
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
-    assert 'data-juego="rastreo"' in html
-    assert '"rastreo"' in js
+    assert POR_ID["rastreo"]["dificultades"][-1] == "experto"
+    assert (BASE / "static/juegos/rastreo.js").exists()
+    assert "rastreo_countdown:" in js
     assert ".rastreo-tablero" in css
     assert "@keyframes rastreo-entrada" in css
 
 def probar_rastreo_cliente_reutiliza_sprite_y_fases():
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
     assert "HAMSTER_PIXELES" in js and "AVE_SVG" in js
     assert "PELAJES[0]" in js
@@ -164,7 +165,7 @@ def probar_rastreo_salida_y_reaparicion_en_el_plan():
     )
 
 def probar_rastreo_cliente_animacion_salida_y_reaparicion():
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
     codigo = (BASE / "arbitro/rastreo.py").read_text(encoding="utf-8")
     assert ".rastreo-hamster" in css and "pointer-events: none" in css
@@ -177,9 +178,9 @@ def probar_rastreo_cliente_animacion_salida_y_reaparicion():
     assert '"reaparecio": movimiento["reaparecio"]' in codigo
 
 def probar_rastreo_cliente_muestra_nivel():
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
-    inicio = js.index('case "rastreo_countdown"')
-    bloque = js[inicio:js.index("break;", inicio)]
+    js = cliente_js()
+    inicio = js.index("rastreo_countdown:")
+    bloque = js[inicio:js.index("}),", inicio)]
     assert "msg.dificultad" in bloque
     inicio = js.index("function mostrarRastreo(msg, fase)")
     bloque = js[inicio:js.index("function configurarSeleccionRastreo", inicio)]
@@ -187,14 +188,13 @@ def probar_rastreo_cliente_muestra_nivel():
     assert "FASES_RASTREO[fase]" in bloque
 
 def probar_resumen_individual_rastreo_y_final_sin_ids():
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     codigo = (BASE / "arbitro/rastreo.py").read_text(encoding="utf-8")
     inicio = js.index("function mostrarResumenIndividual")
-    bloque = js[inicio : js.index("\n  }", inicio)]
-    assert "NOMBRES_FIESTA[clave]" in bloque
-    assert 'rastreo: "RASTREO DE HÁMSTERS"' in js
+    bloque = js[inicio : js.index("\n}", inicio)]
+    assert "nombreJuego(clave)" in bloque
     detalle = bloque.split("const detalle =", 1)[1].split("return `<div", 1)[0]
-    assert 'JUEGOS_MINI.includes(clave) || clave === "rastreo"' in detalle
+    assert 'clave in MINIJUEGOS || clave === "rastreo"' in detalle
     assert "PRECISIÓN ${dato.precision ?? 0}% · BRAIN AGE ${dato.brain_age ?? 0}" in detalle
     assert "VICTORIAS ${dato.victorias ?? 0} · RONDAS ${dato.rondas ?? 0}" in detalle
     assert '"final": list(plan["final"].values())' in codigo
@@ -206,59 +206,21 @@ def probar_documentacion_incluye_rastreo():
     assert "RASTREO DE HÁMSTERS" in readme
     assert "13 pruebas" in readme or "las 13" in readme
     assert "nueve minijuegos" in readme
-    assert "python test_rastreo.py" in readme
+    assert "python tests/test_rastreo.py" in readme
     assert "RASTREO DE HÁMSTERS" in producto
 
 import asyncio, json, threading, time
 import uvicorn, websockets
 import servidor
 from arbitro import nucleo
+from arbitro import rastreo as arbitro_rastreo
 
 async def pausa_corta(sala, segundos):
     await asyncio.sleep(0.01)
 
 nucleo.pausa = pausa_corta
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8786, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-URL = "ws://127.0.0.1:8786/ws"
-
-
-class Cliente:
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=10, desde=0):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if len(encontrados) > desde:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
+arbitro_rastreo.TIEMPO_IDENTIFICACION = 1.0
+URL = levantar_servidor()
 
 
 async def probar_rastreo_individual_y_seleccion_invalida():

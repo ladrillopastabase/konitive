@@ -11,11 +11,12 @@ import random
 from functools import lru_cache
 from pathlib import Path
 
+from juego.catalogo import NOMBRES
+
 BASE = Path(__file__).parent
 RUTA_FRASES = BASE / "frases_silabas.json"
 
-# Orden sugerido por la especificación. Se usa tanto en FIESTA como en
-# INDIVIDUAL (los botones se renderizan en este orden).
+# Minijuegos con generador propio. El orden de portada vive en juego/catalogo.py.
 JUEGOS_MINI = (
     "stroop",
     "triangulos",
@@ -27,16 +28,7 @@ JUEGOS_MINI = (
     "ppt",
 )
 
-NOMBRES_MINI = {
-    "stroop": "STROOP",
-    "triangulos": "TRIÁNGULOS",
-    "relojes": "RELOJES",
-    "menor": "MENOR A MAYOR",
-    "memoria": "MEMORIA",
-    "vuelto": "DAR VUELTO",
-    "silabas": "SÍLABAS",
-    "ppt": "PIEDRA · PAPEL · TIJERA",
-}
+NOMBRES_MINI = {juego: NOMBRES[juego] for juego in JUEGOS_MINI}
 
 RONDAS_MINI = {
     "stroop": 20,

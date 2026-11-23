@@ -1,10 +1,10 @@
 """El desglose único del cliente: tiempo, errores y Brain Age."""
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
+from apoyo import RAIZ  # primero: deja la raíz del proyecto en sys.path
 
-RAIZ = Path(__file__).resolve().parent
+import subprocess
+
 
 CODIGO = r"""
 global.window = global;

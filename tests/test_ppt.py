@@ -7,13 +7,12 @@ WebSocket para comprobar la validación de respuestas y el resumen final.
 """
 from __future__ import annotations
 
+from apoyo import RAIZ, Cliente, cliente_js, levantar_servidor  # primero: deja la raíz del proyecto en sys.path
+
 import asyncio
 import json
-import threading
 import time
-from pathlib import Path
 
-import uvicorn
 import websockets
 
 import servidor
@@ -27,16 +26,15 @@ from arbitro.minijuegos import (
     VISUAL_MINI, datos_para_resultado, estimulo_para_mando, visual_mini,
 )
 
-BASE = Path(__file__).parent
+BASE = RAIZ
 
 
 def probar_cliente_incluye_ppt_en_selector_y_mensajes():
-    html = (BASE / "static/index.html").read_text(encoding="utf-8")
-    js = (BASE / "static/app.js").read_text(encoding="utf-8")
+    js = cliente_js()
     css = (BASE / "static/estilos.css").read_text(encoding="utf-8")
-    assert 'data-juego="ppt"' in html
-    assert '"ppt"' in js
-    assert "ppt_answer" in js
+    assert "ppt" in NOMBRES_JUEGOS
+    assert 'registrarMini("ppt"' in js
+    assert 'opcionesUnicas("ppt", "mano"' in js  # envía ppt_answer
     assert ".ppt-opcion" in css
 
 
@@ -46,48 +44,7 @@ async def pausa_corta(sala, segundos):
 
 nucleo.pausa = pausa_corta
 
-config = uvicorn.Config(servidor.app, host="127.0.0.1", port=8782, log_level="error")
-servidor_uvicorn = uvicorn.Server(config)
-threading.Thread(target=servidor_uvicorn.run, daemon=True).start()
-while not servidor_uvicorn.started:
-    time.sleep(0.02)
-
-URL = "ws://127.0.0.1:8782/ws"
-
-
-class Cliente:
-    def __init__(self, ws):
-        self.ws = ws
-        self.recibidos = []
-        self.tarea = asyncio.create_task(self._leer())
-
-    async def _leer(self):
-        try:
-            async for crudo in self.ws:
-                self.recibidos.append(json.loads(crudo))
-        except websockets.ConnectionClosed:
-            pass
-
-    async def enviar(self, objeto):
-        await self.ws.send(json.dumps(objeto))
-
-    def de_tipo(self, tipo):
-        return [m for m in self.recibidos if m["type"] == tipo]
-
-    async def esperar(self, tipo, timeout=10, desde=0):
-        fin = time.monotonic() + timeout
-        while True:
-            encontrados = self.de_tipo(tipo)
-            if len(encontrados) > desde:
-                return encontrados[-1]
-            assert time.monotonic() < fin, (
-                f"No llegó {tipo}. Tipos vistos: {[m['type'] for m in self.recibidos]}"
-            )
-            await asyncio.sleep(0.01)
-
-    async def cerrar(self):
-        self.tarea.cancel()
-        await self.ws.close()
+URL = levantar_servidor()
 
 
 async def abrir_individual_ppt() -> Cliente:

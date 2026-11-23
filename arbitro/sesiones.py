@@ -13,18 +13,19 @@ from arbitro.minijuegos import bucle_minijuego
 from arbitro.rastreo import bucle_rastreo
 
 
+# Bucle de cada juego del catálogo. Un juego nuevo se registra aquí.
+BUCLES = {
+    **{juego: bucle_partida for juego in JUEGOS},
+    "cajas": bucle_cajas,
+    "operaciones": bucle_operaciones,
+    "rastreo": bucle_rastreo,
+    **{juego: (lambda sala, juego=juego: bucle_minijuego(sala, juego)) for juego in JUEGOS_MINI},
+}
+
+
 async def jugar(sala: Sala, juego: str) -> None:
     """Lanza el bucle del juego indicado y espera a que termine."""
-    if juego in JUEGOS:
-        await bucle_partida(sala)
-    elif juego == "cajas":
-        await bucle_cajas(sala)
-    elif juego == "operaciones":
-        await bucle_operaciones(sala)
-    elif juego == "rastreo":
-        await bucle_rastreo(sala)
-    elif juego in JUEGOS_MINI:
-        await bucle_minijuego(sala, juego)
+    await BUCLES[juego](sala)
 
 
 async def bucle_individual(sala: Sala) -> None:

@@ -7,6 +7,8 @@ los tres niveles de dificultad y no repite la frase anterior.
 """
 from __future__ import annotations
 
+import apoyo  # primero: deja la raíz del proyecto en sys.path
+
 import re
 
 from juego.minijuegos import RONDAS_MINI, cargar_frases, generar_silabas

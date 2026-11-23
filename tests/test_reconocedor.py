@@ -6,6 +6,8 @@ Uso:
 """
 from __future__ import annotations
 
+import apoyo  # primero: deja la raíz del proyecto en sys.path
+
 import string
 from pathlib import Path
 
