@@ -26,7 +26,7 @@ from arbitro.nucleo import (
 
 # Minijuegos de entrenamiento: la puntuación es tiempo + 5 s por error
 # (menor es mejor). Es el único resultado, también en el podio.
-TIEMPO_CUENTA_MINI = 3.0
+TIEMPO_CUENTA_MINI = 0.8
 TIEMPO_RESPUESTA_MINI = {
     "stroop": 3.0,
     "triangulos": 60.0,
@@ -634,7 +634,9 @@ async def bucle_minijuego(sala: Sala, juego: str) -> None:
                 },
                 {"type": f"{juego}_result", "ronda": ronda},
             )
-            await nucleo.pausa(sala, 2.5 if ronda < total_rondas else 1.0)
+            await nucleo.pausa(
+                sala, nucleo.TIEMPO_RESULTADO if ronda < total_rondas else 1.0
+            )
 
         pid = ids[0] if ids else sala.host_id
         brain = puntuacion(tiempos.get(pid, 0.0), fallos.get(pid, 0))

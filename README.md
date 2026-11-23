@@ -123,11 +123,12 @@ rechazos seguidos = aceptación automática = 15 s). El desglose siempre muestra
 
 Se juega hasta completar 3 victorias en la prueba de turno: pájaros y escritura
 se alternan dentro de ella. No hay rival ni desempate: el marcador es solo el
-entrenamiento propio. Pájaros muestra de 5 a 18 aves (los dos primeros niveles
-quietos y después saltitos aleatorios); se cuenta con **− / +** o flechas y se
-confirma con **Enter**. Escritura muestra la palabra apenas 0,8 segundos y
-después se escribe de memoria, letra a letra, en el cuaderno de tinta. Cada
-letra rechazada suma 5 segundos a la puntuación.
+entrenamiento propio. Pájaros muestra de 5 a 18 aves, con una cantidad aleatoria
+distinta en cada ronda (los dos primeros niveles quietos y después saltitos
+aleatorios); se cuenta con **− / +** o flechas y se confirma con **Enter**.
+Escritura muestra la palabra apenas 0,8 segundos y después se escribe de
+memoria, letra a letra, en el cuaderno de tinta. Cada letra rechazada suma
+5 segundos a la puntuación.
 
 ### CAJAS
 
@@ -308,7 +309,8 @@ los cuatro clásicos y los nueve minijuegos anteriores.
 
 ## Reglas de PÁJAROS y PALABRAS
 
-- **Pájaros**: 5 → 18 aves. Los dos primeros niveles van quietos; después
+- **Pájaros**: de 5 a 18 aves, con una cantidad aleatoria que no repite la de
+  la ronda anterior. Los dos primeros niveles van quietos; después
   algunos pájaros dan saltitos cortos y aleatorios, con un desplazamiento
   mínimo (nunca saltan todos). El número se elige con los botones **− / +** o
   con las **flechas arriba/abajo**; no hay campo de texto. Durante la respuesta
@@ -350,6 +352,7 @@ python tests/test_silabas.py       # corpus de 63 frases y separación silábica
 python tests/test_minijuegos.py    # los ocho minijuegos genéricos en individual y fiesta
 python tests/test_ppt.py           # piedra papel tijera: generador, individual y fiesta
 python tests/test_revision.py      # memoria, vuelto con trampas, envío doble y tope de salas
+python tests/test_ritmo.py         # variedad de aves, cuentas previas y pausa de resultados
 python tests/test_rastreo.py       # tablero, fases y fiesta de rastreo de hamsters
 python tests/test_descripciones_individuales.py  # portada real en Chrome headless
 ```

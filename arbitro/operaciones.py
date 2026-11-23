@@ -200,7 +200,9 @@ async def bucle_operaciones(sala: Sala) -> None:
                 },
                 {"type": "operacion_result", "ronda": ronda},
             )
-            await nucleo.pausa(sala, 3.0 if ronda < rondas else 1.0)
+            await nucleo.pausa(
+                sala, nucleo.TIEMPO_RESULTADO if ronda < rondas else 1.0
+            )
 
         primero = ids[0] if ids else sala.host_id
         tiempo_total = tiempos.get(primero, 0.0)

@@ -22,7 +22,7 @@ from arbitro.nucleo import (
 )
 
 TIEMPO_IDENTIFICACION = 12.0
-PAUSA_ENTRE_RONDAS = 2.5
+PAUSA_ENTRE_RONDAS = nucleo.TIEMPO_RESULTADO
 
 
 def resumen_rastreo_individual(sala: Sala) -> dict:

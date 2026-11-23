@@ -23,7 +23,7 @@ from arbitro.nucleo import (
 
 # Cuenta Cajas: modo propio, fuera de JUEGOS para no alterar el mejor-de-3.
 RONDAS_CAJAS = 10
-TIEMPO_CUENTA_CAJAS = 3.0
+TIEMPO_CUENTA_CAJAS = 0.8
 TIEMPO_RESPUESTA_CAJAS = 10
 
 
@@ -221,7 +221,9 @@ async def bucle_cajas(sala: Sala) -> None:
                 },
                 {"type": "cajas_result", "ronda": ronda},
             )
-            await nucleo.pausa(sala, 3.0 if ronda < rondas else 1.0)
+            await nucleo.pausa(
+                sala, nucleo.TIEMPO_RESULTADO if ronda < rondas else 1.0
+            )
 
         primero = ids[0] if ids else sala.host_id
         tiempo_total = tiempos.get(primero, 0.0)

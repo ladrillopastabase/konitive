@@ -5,7 +5,7 @@ WebSocket) que arbitra y un cliente JS sin frameworks. Hay 13 pruebas que se
 juegan en INDIVIDUAL o en FIESTA (una PC como pantalla y hasta 8 celulares como
 mandos). Todo el código, los nombres y los textos están en español.
 
-Antes de tocar nada: `python tests/correr.py` (17 pruebas, unos 15 s). Después
+Antes de tocar nada: `python tests/correr.py` (18 pruebas, unos 15 s). Después
 de cambiar algo, otra vez.
 
 ## Mapa
@@ -38,6 +38,11 @@ de cambiar algo, otra vez.
    `servidor.py` lo valida y lo pasa al árbitro.
 4. El árbitro mide el tiempo, calcula `puntuacion()` y guarda
    `sala.ultimas_puntuaciones`, que FIESTA suma al podio.
+
+El ritmo vive en el servidor: las cuentas previas duran 0,8 s
+(`nucleo.TIEMPO_CUENTA_PREVIA`, `cajas.TIEMPO_CUENTA_CAJAS` y
+`minijuegos.TIEMPO_CUENTA_MINI`) y el informe de cada ronda se muestra 1,5 s
+(`nucleo.TIEMPO_RESULTADO`).
 
 En el cliente, `manejar()` (en `app.js`) atiende los mensajes de sala, y el
 `default` busca en `MENSAJES[msg.type]`, que llenan los archivos de `juegos/`.

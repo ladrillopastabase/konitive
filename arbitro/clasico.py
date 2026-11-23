@@ -32,7 +32,9 @@ from arbitro.nucleo import (
 )
 
 
-CANTIDADES_PAJAROS = (5, 8, 11, 14, 18)
+# Cantidad de aves por nivel: un rango aleatorio para que no se repita la
+# misma cifra en cada ronda. Los niveles siguen subiendo de dificultad.
+RANGOS_PAJAROS = ((5, 8), (7, 11), (10, 14), (13, 16), (16, 18))
 # Niveles que se adelantan en fiesta con dificultad (fácil, normal, difícil):
 # hay 5 niveles de aves y de largo de palabra.
 SALTOS_DIFICULTAD = (0, 1, 3)
@@ -44,9 +46,20 @@ TIEMPO_ESPERA_ESCRITURA = 120
 TIEMPO_FLASH_PALABRA = 0.8
 
 
-def generar_pajaros(nivel: int) -> list[dict]:
-    """Aves quietas o con saltitos cortos y desplazamiento mínimo."""
-    cantidad = CANTIDADES_PAJAROS[min(nivel - 1, len(CANTIDADES_PAJAROS) - 1)]
+def generar_pajaros(nivel: int, evitar: int | None = None) -> list[dict]:
+    """Aves quietas o con saltitos cortos y desplazamiento mínimo.
+
+    La cantidad sale de un rango aleatorio del nivel y no repite `evitar`
+    (la cantidad de la ronda anterior) cuando se indica.
+    """
+    indice = min(nivel - 1, len(RANGOS_PAJAROS) - 1)
+    minimo, maximo = RANGOS_PAJAROS[indice]
+    cantidad = random.randint(minimo, maximo)
+    if evitar is not None:
+        for _ in range(12):
+            if cantidad != evitar:
+                break
+            cantidad = random.randint(minimo, maximo)
     probabilidad = PROBABILIDAD_SALTO[min(nivel - 1, len(PROBABILIDAD_SALTO) - 1)]
     aves: list[dict] = []
     # Niveles 1-3: hámsters grandes y pocos; desde el 4, más chicos y juntos.
@@ -114,8 +127,10 @@ async def difundir_conteos(sala: Sala) -> None:
         await sala.difundir({"type": "bird_tally", **estado_conteos(sala)})
 
 
-async def ronda_pajaros(sala: Sala, nivel: int) -> dict[str, float]:
-    aves = generar_pajaros(nivel)
+async def ronda_pajaros(
+    sala: Sala, nivel: int, cantidad_anterior: int | None = None
+) -> dict[str, float]:
+    aves = generar_pajaros(nivel, evitar=cantidad_anterior)
     # Fase de observación (la barrita). Los hámsters siguen visibles después.
     duracion = 6.0 if nivel <= 2 else 5.0
     # Tiempo total para responder: observación + respuesta (lo que muestra la barrita).
@@ -428,6 +443,11 @@ async def bucle_partida(sala: Sala) -> None:
 
             sala.rondas_juego[juego] += 1
             nivel = sala.rondas_juego[juego]
+            # La cantidad de la ronda anterior se guarda antes de reiniciar
+            # `datos`, para no repetir el mismo conteo de aves.
+            cantidad_anterior = sala.datos.get("esperado")
+            if not isinstance(cantidad_anterior, int):
+                cantidad_anterior = None
             sala.fase = "desempate" if sala.desempate else juego
             sala.datos = {
                 "juego": juego,
@@ -447,7 +467,9 @@ async def bucle_partida(sala: Sala) -> None:
             # La dificultad de fiesta adelanta el nivel de aves y palabras.
             nivel_reto = ronda_generador(sala, nivel, SALTOS_DIFICULTAD)
             if juego == "pajaros":
-                puntuacion_ronda = await ronda_pajaros(sala, nivel_reto)
+                puntuacion_ronda = await ronda_pajaros(
+                    sala, nivel_reto, cantidad_anterior
+                )
             else:
                 puntuacion_ronda = await ronda_escritura(sala, nivel_reto)
             if sala.cancelada:
@@ -512,7 +534,9 @@ async def bucle_partida(sala: Sala) -> None:
                 },
                 {"type": "round_result", "nivel": nivel},
             )
-            await nucleo.pausa(sala, 4.0 if not sala.practica else 2.0)
+            await nucleo.pausa(
+                sala, nucleo.TIEMPO_RESULTADO if not sala.practica else 1.2
+            )
             if sala.cancelada:
                 return
 
@@ -546,7 +570,7 @@ async def bucle_partida(sala: Sala) -> None:
                             "marcador": sala.marcador(),
                         }
                     )
-                    await nucleo.pausa(sala, 3.0)
+                    await nucleo.pausa(sala, nucleo.TIEMPO_RESULTADO)
                     if sala.cancelada:
                         return
 
@@ -564,7 +588,7 @@ async def bucle_partida(sala: Sala) -> None:
                         "mensaje": "¡Empate! Ronda de desempate al azar",
                     }
                 )
-                await nucleo.pausa(sala, 3.5)
+                await nucleo.pausa(sala, nucleo.TIEMPO_RESULTADO)
     except asyncio.CancelledError:
         pass
 

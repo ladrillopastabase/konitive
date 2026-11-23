@@ -36,7 +36,10 @@ DIFICULTADES_FIESTA = DIFICULTADES
 RONDAS_FIESTA = 5
 RONDAS_FIESTA_MAX = 20
 VICTORIAS_NECESARIAS = 3
-TIEMPO_CUENTA_PREVIA = 3.0
+TIEMPO_CUENTA_PREVIA = 0.8
+# Pausa entre la ronda y la siguiente: suficiente para leer el informe sin
+# cortar el ritmo de la partida.
+TIEMPO_RESULTADO = 1.5
 
 reconocedor = Reconocedor()
 reconocedor_digitos = ReconocedorDigitos()
