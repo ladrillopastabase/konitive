@@ -23,14 +23,14 @@ function trianguloHtml(reto, mostrarResultados = false) {
 registrarMini("triangulos", {
   visual: (datos) => (datos.top ? trianguloHtml(datos) : ""),
   estimulo(msg) {
-    return [this.visual(msg), '<p class="pista">Opera cada par vecino hacia abajo (el número del centro se usa dos veces) y escribe solo el resultado final.</p>'];
+    return [this.visual(msg), '<p class="pista">¡TRIÁNGULOS!</p>'];
   },
   respuesta(msg, mando) {
     const estimulo = mando ? null : (msg.estimulo || {});
     iniciarCanvasEscritura({
       kicker: mando ? "MIRA LA PANTALLA · ESCRIBE EL RESULTADO" : `${nombreJuego("triangulos")} · ${etiquetaRonda(msg)}`,
       recordatorio: estimulo?.top ? trianguloHtml(estimulo) : "",
-      pista: mando ? "Calcula mirando la PC y escribe solo el resultado final aquí." : "",
+      pista: "",
       tipoMensaje: "triangulos_digit",
       extra: { ronda: msg.ronda },
       feedbackAceptada: (fb) => `✓ ${fb.esperada ?? ""} · BIEN`,

@@ -10,6 +10,31 @@ const listaFiesta = new Set();
 const ajustesFiesta = Object.fromEntries(
   IDS_JUEGOS.map((j) => [j, { rondas: RONDAS_FIESTA.defecto, dificultad: "facil" }])
 );
+// Rondas por defecto de cada juego en modo INDIVIDUAL (las que usaba cada
+// bucle antes de que existiera el menú de ajustes).
+const RONDAS_INDIVIDUAL_DEFECTO = {
+  pajaros: 3,
+  escritura: 3,
+  cajas: 10,
+  operaciones: 10,
+  rastreo: 5,
+  stroop: 20,
+  triangulos: 10,
+  relojes: 10,
+  menor: 5,
+  memoria: 6,
+  vuelto: 10,
+  silabas: 10,
+  ppt: 10,
+};
+// Ajustes INDIVIDUAL por juego (rondas y dificultad), igual que en fiesta.
+const listaIndividual = new Set();
+const ajustesIndividual = Object.fromEntries(
+  IDS_JUEGOS.map((j) => [
+    j,
+    { rondas: RONDAS_INDIVIDUAL_DEFECTO[j] ?? RONDAS_FIESTA.defecto, dificultad: "facil" },
+  ])
+);
 
 /* ---------- Inicio ---------- */
 $("btn-crear").addEventListener("click", () => {
@@ -36,14 +61,56 @@ $("btn-unirse").addEventListener("click", () => {
 $("btn-individual").addEventListener("click", () => {
   $("error-inicio").textContent = "";
   $("error-individual").textContent = "";
-  actualizarSelectorIndividual();
+  pintarListaIndividual();
   mostrar("pantalla-individual");
 });
 
-// Botones del selector INDIVIDUAL, en el orden del catálogo.
-$("selector-individual").innerHTML = CATALOGO.map(
-  (j) => `<button type="button" class="boton-juego" data-juego="${j.id}" aria-pressed="false">${escapeHtml(j.nombre)}</button>`
-).join("");
+// Botones del selector INDIVIDUAL: filas con rondas y dificultad (como FIESTA).
+function pintarListaIndividual() {
+  $("lista-individual").innerHTML = CATALOGO.map(({ id: juego, nombre, dificultades }) => {
+    const activo = listaIndividual.has(juego);
+    const { rondas, dificultad } = ajustesIndividual[juego];
+    return `<div class="fila-juego ${activo ? "activa" : ""}" data-fila="${juego}">
+      <button type="button" class="fila-juego-nombre" data-alternar="${juego}" aria-pressed="${activo}">${escapeHtml(nombre)}</button>
+      <div class="fila-juego-rondas" aria-label="Rondas de ${escapeHtml(nombre)}">
+        <button type="button" data-rondas="${juego}" data-delta="-1" aria-label="Menos rondas" ${activo ? "" : "disabled"}>−</button>
+        <output>${rondas}</output>
+        <button type="button" data-rondas="${juego}" data-delta="1" aria-label="Más rondas" ${activo ? "" : "disabled"}>+</button>
+      </div>
+      <select data-dificultad="${juego}" aria-label="Dificultad de ${escapeHtml(nombre)}" ${activo ? "" : "disabled"}>
+        ${dificultades.map((valor) => `<option value="${valor}" ${valor === dificultad ? "selected" : ""}>${ETIQUETA_DIFICULTAD[valor] || valor.toUpperCase()}</option>`).join("")}
+      </select>
+    </div>`;
+  }).join("");
+  actualizarBotonIndividual();
+  // Hover / foco sobre una fila: mostrar la ficha lateral de esa prueba.
+  $("lista-individual").querySelectorAll("button[data-alternar]").forEach((boton) => {
+    boton.addEventListener("mouseenter", () => {
+      fichaActiva = boton;
+      mostrarFicha(boton.dataset.alternar);
+    });
+    boton.addEventListener("mouseleave", () => {
+      if (fichaActiva === boton && document.activeElement !== boton) fichaActiva = null;
+      if (fichaActiva === null) restaurarFicha();
+    });
+    boton.addEventListener("focus", () => {
+      fichaActiva = boton;
+      mostrarFicha(boton.dataset.alternar);
+    });
+    boton.addEventListener("blur", () => {
+      if (fichaActiva === boton) fichaActiva = null;
+      if (fichaActiva === null) restaurarFicha();
+    });
+  });
+}
+
+function actualizarBotonIndividual() {
+  const boton = $("btn-empezar-individual");
+  boton.disabled = listaIndividual.size === 0;
+  boton.textContent = listaIndividual.size
+    ? `EMPEZAR · ${listaIndividual.size} JUEGO${listaIndividual.size === 1 ? "" : "S"}`
+    : "ELIGE AL MENOS UN JUEGO";
+}
 
 function mostrarFicha(juego) {
   const ficha = CATALOGO.find((j) => j.id === juego);
@@ -55,69 +122,57 @@ function mostrarFicha(juego) {
 let fichaActiva = null;
 
 function restaurarFicha() {
-  const selector = $("selector-individual");
+  const selector = $("lista-individual");
   const elegido = fichaActiva && selector.contains(fichaActiva)
     ? fichaActiva
-    : [...selector.querySelectorAll("button[data-juego]")]
-        .find((boton) => juegosIndividuales.has(boton.dataset.juego));
-  if (elegido) mostrarFicha(elegido.dataset.juego);
+    : [...selector.querySelectorAll("button[data-alternar]")]
+        .find((boton) => listaIndividual.has(boton.dataset.alternar));
+  if (elegido) mostrarFicha(elegido.dataset.alternar);
   else {
     $("ficha-juego-titulo").textContent = "CONITA";
     $("ficha-juego-texto").textContent = "Elige una prueba para ver cómo entrena a Conita.";
   }
 }
 
-function actualizarSelectorIndividual() {
-  $("selector-individual")
-    .querySelectorAll("button[data-juego]")
-    .forEach((boton) => {
-      boton.setAttribute("aria-pressed", juegosIndividuales.has(boton.dataset.juego) ? "true" : "false");
-    });
-  $("btn-empezar-individual").disabled = juegosIndividuales.size === 0;
-  restaurarFicha();
-}
-
-$("selector-individual").querySelectorAll("button[data-juego]").forEach((boton) => {
-  const juego = boton.dataset.juego;
-  boton.addEventListener("click", () => {
-    if (juegosIndividuales.has(juego)) juegosIndividuales.delete(juego);
-    else juegosIndividuales.add(juego);
-    actualizarSelectorIndividual();
-  });
-  boton.addEventListener("mouseenter", () => {
-    fichaActiva = boton;
-    mostrarFicha(juego);
-  });
-  boton.addEventListener("mouseleave", () => {
-    if (fichaActiva === boton && document.activeElement !== boton) fichaActiva = null;
-    restaurarFicha();
-  });
-  boton.addEventListener("focus", () => {
-    fichaActiva = boton;
-    mostrarFicha(juego);
-  });
-  boton.addEventListener("blur", () => {
-    if (fichaActiva === boton) fichaActiva = null;
-    restaurarFicha();
-  });
+$("lista-individual").addEventListener("click", (e) => {
+  const alternar = e.target.closest("[data-alternar]");
+  const rondas = e.target.closest("[data-rondas]");
+  if (alternar) {
+    const juego = alternar.dataset.alternar;
+    if (listaIndividual.has(juego)) listaIndividual.delete(juego);
+    else listaIndividual.add(juego);
+    pintarListaIndividual();
+  } else if (rondas && !rondas.disabled) {
+    const ajuste = ajustesIndividual[rondas.dataset.rondas];
+    ajuste.rondas = Math.min(
+      RONDAS_FIESTA.max,
+      Math.max(RONDAS_FIESTA.min, ajuste.rondas + Number(rondas.dataset.delta))
+    );
+    rondas.parentElement.querySelector("output").textContent = ajuste.rondas;
+  }
 });
-restaurarFicha();
+
+$("lista-individual").addEventListener("change", (e) => {
+  const juego = e.target.dataset.dificultad;
+  if (juego) ajustesIndividual[juego].dificultad = e.target.value;
+});
 
 $("btn-todos").addEventListener("click", () => {
-  juegosIndividuales = new Set(IDS_JUEGOS);
-  actualizarSelectorIndividual();
+  IDS_JUEGOS.forEach((j) => listaIndividual.add(j));
+  pintarListaIndividual();
 });
-
 $("btn-ninguno").addEventListener("click", () => {
-  juegosIndividuales = new Set();
-  actualizarSelectorIndividual();
+  listaIndividual.clear();
+  pintarListaIndividual();
 });
 
 $("btn-empezar-individual").addEventListener("click", () => {
-  if (!juegosIndividuales.size) return;
+  if (!listaIndividual.size) return;
   const nombre = $("nombre").value.trim() || "Paciente";
   $("error-individual").textContent = "";
-  conectar({ type: "individual", nombre, juegos: [...juegosIndividuales] });
+  const juegos = IDS_JUEGOS.filter((j) => listaIndividual.has(j));
+  const ajustes = Object.fromEntries(juegos.map((j) => [j, ajustesIndividual[j]]));
+  conectar({ type: "individual", nombre, juegos, ajustes });
 });
 
 $("btn-fiesta").addEventListener("click", () => {
@@ -224,6 +279,7 @@ $("btn-iniciar-fiesta").addEventListener("click", () => {
 });
 
 pintarListaFiesta();
+pintarListaIndividual();
 
 $("btn-fin-fiesta").addEventListener("click", () => enviar({ type: "finish_fiesta" }));
 

@@ -17,7 +17,7 @@ registrarMini("stroop", {
     return [
       this.visual(msg),
       (msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : "") +
-        '<p class="pista">Di el COLOR DE LA TINTA, no lo que dice la palabra. ¡Se borra rápido!</p>',
+        '<p class="pista">¡COLORES!</p>',
     ];
   },
   respuesta(msg, mando) {
@@ -28,7 +28,7 @@ registrarMini("stroop", {
       mando
         ? miraPantallaHtml("MIRA LA PANTALLA · ELIGE LA TINTA")
         : `<div class="mira-pantalla stroop-oculto"><b>¿DE QUÉ COLOR ERA LA TINTA?</b><span>La palabra ya se borró · responde de memoria</span></div>`,
-      `<p class="pista">Elige el color de la tinta que viste, no lo que decía la palabra.</p>
+      `<p class="pista">ELIGE LA TINTA</p>
       <div class="stroop-botones">
         ${["rojo", "azul", "verde", "amarillo"].map((color) =>
           `<button type="button" class="boton stroop-opcion" data-color="${color}">${color.toUpperCase()}</button>`

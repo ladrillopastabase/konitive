@@ -11,7 +11,7 @@ registrarMini("ppt", {
     </div>`;
   },
   estimulo(msg) {
-    return [this.visual(msg), '<p class="pista">Elige la mano que cumpla la consigna contra el rival</p>'];
+    return [this.visual(msg), '<p class="pista">¡ELIGE!</p>'];
   },
   respuesta(msg, mando) {
     // En FIESTA el mando solo recibe {"mira": true}: la mano del rival y la
@@ -20,9 +20,7 @@ registrarMini("ppt", {
     $("contenido").innerHTML = panelAmplio(
       '<p class="kicker">ELIGE LA MANO QUE CUMPLA LA CONSIGNA</p>',
       mando ? miraPantallaHtml("MIRA LA PANTALLA · ELIGE TU MANO") : this.visual(msg),
-      `<p class="pista">${mando
-        ? "Mira la pantalla y elige tu mano aquí."
-        : "Elige la mano que gane o pierda contra el rival según la consigna."}</p>
+      `<p class="pista">${mando ? "ELIGE TU MANO" : "ELIGE LA MANO"}</p>
       <div class="ppt-botones">
         ${["piedra", "papel", "tijera"].map((mano) =>
           `<button type="button" class="boton ppt-opcion" data-mano="${mano}">${mano.toUpperCase()}</button>`

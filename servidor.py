@@ -35,6 +35,8 @@ from arbitro.nucleo import (
     ip_local,
     lanzar,
     leer_ajustes_fiesta,
+    RONDAS_FIESTA,
+    RONDAS_INDIVIDUAL_DEFECTO,
     nuevo_codigo,
     participantes,
     salas,
@@ -294,6 +296,7 @@ async def websocket(ws: WebSocket) -> None:
                 return
             opciones, bucle = SALAS_NUEVAS[tipo]
             seleccion: list[str] = []
+            ajustes: dict = {}
             if tipo == "individual":
                 juegos = mensaje.get("juegos")
                 if not isinstance(juegos, list) or not juegos:
@@ -306,11 +309,27 @@ async def websocket(ws: WebSocket) -> None:
                         {"type": "error", "mensaje": "Elige al menos un juego válido"}
                     )
                     return
+                # Ajustes por juego (rondas y dificultad), igual que en fiesta.
+                # Si el cliente no envía ajustes, usar las rondas por defecto de cada juego.
+                ajustes_entrante = mensaje.get("ajustes")
+                if not isinstance(ajustes_entrante, dict):
+                    ajustes_entrante = {}
+                for juego in seleccion:
+                    dato = ajustes_entrante.get(juego)
+                    if not isinstance(dato, dict):
+                        dato = {}
+                    if "rondas" not in dato:
+                        dato["rondas"] = RONDAS_INDIVIDUAL_DEFECTO.get(juego, RONDAS_FIESTA)
+                    if "dificultad" not in dato:
+                        dato["dificultad"] = "facil"
+                    ajustes_entrante[juego] = dato
+                _, ajustes = leer_ajustes_fiesta(seleccion, ajustes_entrante)
             codigo = nuevo_codigo()
             sala = Sala(
                 codigo=codigo,
                 host_id=str(uuid.uuid4()),
                 juegos_individual=seleccion,
+                ajustes_fiesta=ajustes,
                 **opciones,
             )
             salas[codigo] = sala

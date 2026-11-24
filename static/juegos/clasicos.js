@@ -16,11 +16,7 @@ function iniciarRonda(msg) {
   $("contenido").innerHTML = `<div class="panel panel-escena">
     <p class="kicker">${msg.desempate ? "TODO SE DECIDE AQUÍ" : "PREPARADOS"}</p>
     <div class="glifo">${msg.juego === "pajaros" ? "◎" : "✎"}</div>
-    <p class="pista">${
-      msg.juego === "pajaros"
-        ? "Cuenta los hámsters en cuanto aparezcan."
-        : "Primero contaremos hasta tres. Después verás la palabra un instante."
-    }</p>
+    <p class="pista">${msg.juego === "pajaros" ? "¡OBSERVA!" : "¡MEMORIZA!"}</p>
   </div>`;
 }
 
@@ -63,8 +59,8 @@ function mostrarPajaros(msg) {
       ? '<div style="text-align:center;margin:2vh 0;color:var(--tinta-suave)">LOS HÁMSTERS APARECEN EN LA PANTALLA DEL ANFITRIÓN</div>'
       : '<div class="amplio-visual"><div class="campo-pajaros" id="campo-pajaros"></div></div>'}
     <div class="amplio-abajo">
-      ${esMando || esPantalla ? "" : `<div class="stepper-respuesta">${STEPPER_HTML}<p class="pista stepper-ayuda">Cuenta los hámsters y responde cuanto antes.</p><button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button></div>`}
-      ${esPantalla ? '<p class="pista">Los mandos cuentan en su celular.</p>' : ""}
+      ${esMando || esPantalla ? "" : `<div class="stepper-respuesta">${STEPPER_HTML}<button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button></div>`}
+
       <div class="barra-tiempo"><div id="barra-tiempo"></div></div>
     </div>
   </div>`;
@@ -147,11 +143,6 @@ function ocultarPajaros(msg) {
     if (kicker) kicker.textContent = "FASE 02 · RESPONDE";
     const titulo = document.querySelector("#contenido .panel-titulo");
     if (titulo) titulo.textContent = "¿CUÁNTOS HÁMSTERS HAY?";
-    const ayuda = document.querySelector("#contenido .stepper-ayuda");
-    if (ayuda) {
-      ayuda.textContent =
-        "Los hámsters siguen en pantalla. Usa los botones o flechas y confirma cuanto antes.";
-    }
     let vivos = $("conteos-vivos");
     if (!vivos) {
       vivos = document.createElement("div");
@@ -172,9 +163,7 @@ function ocultarPajaros(msg) {
     <p class="kicker">FASE 02 · RESPONDE</p>
     <h2 class="panel-titulo">¿CUÁNTOS HÁMSTERS HABÍA?</h2>
     ${STEPPER_HTML}
-    <p class="pista stepper-ayuda">Usa los botones o las flechas arriba y abajo.</p>
     <button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button>
-    <p class="pista">Tienes ${msg.segundos} segundos. Suma más quien antes acierte.</p>
   </div>`;
   configurarStepperPajaros();
 }
@@ -185,14 +174,14 @@ function mostrarPalabra(msg) {
   $("contenido").innerHTML = `<div class="panel panel-escena flash">
     <p class="kicker">FASE 02 · MEMORIZA</p>
     <div class="flash-palabra">${escapeHtml(msg.palabra)}</div>
-    <p class="pista flash-pista">Solo un instante. Recuérdela.</p>
+    <p class="pista flash-pista">¡MEMORIZA!</p>
   </div>`;
 }
 
 function iniciarEscritura() {
   iniciarCanvasEscritura({
     kicker: "FASE 03 · ESCRIBE DE MEMORIA",
-    pista: "Dibuja la letra con el dedo o el mouse. Puedes levantar y seguir.",
+    pista: "ESCRIBE",
     tipoMensaje: "letter",
     terminoTexto: "PALABRA COMPLETA · ESPERANDO",
   });
@@ -268,7 +257,7 @@ function mostrarFinal(msg) {
     <div class="sello-grande">K</div>
     <p class="kicker">INFORME FINAL · LABORATORIO DE ATENCIÓN</p>
     <b>${gane ? "¡ERES EL CAMPEÓN!" : `GANADOR: ${escapeHtml(msg.nombre_ganador)}`}</b>
-    <p class="pista">${gane ? "Atención, memoria y pulso: todo en orden." : "Buena tentativa. Vuelve a intentarlo."}</p>
+    <p class="pista">${gane ? "¡CAMPEÓN!" : "BUEN INTENTO."}</p>
     <div class="puntajes" style="text-align:left">${cajas}</div>
     <div class="diploma-acciones">
       ${

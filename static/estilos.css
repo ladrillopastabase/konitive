@@ -481,7 +481,6 @@ input::placeholder { color: #a39b8c; }
   font-size: clamp(32px, 10vw, 52px);
   line-height: 1;
 }
-.stepper-ayuda { margin: var(--v-1) 0 0; }
 #btn-responder { max-width: 330px; margin: 0 auto; }
 
 .conteos-vivos[hidden] { display: none; }
@@ -761,16 +760,17 @@ input::placeholder { color: #a39b8c; }
 .puntaje.ganador { border-width: 3px; border-color: var(--rosa-borde); }
 .puntaje .numero { font-family: var(--display); font-size: 36px; line-height: 1; }
 .puntaje .desglose {
-  margin-top: 6px;
+  margin-top: 8px;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: .05em;
+  letter-spacing: .03em;
+  line-height: 1.35;
   color: var(--tinta-suave);
   overflow-wrap: anywhere;
 }
-.puntaje .quien { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; margin-top: 7px; text-transform: uppercase; overflow-wrap: anywhere; }
-.resultado-pie { margin: var(--v-2) 0 0; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; }
+.puntaje .quien { font-family: var(--mono); font-size: 15px; letter-spacing: .08em; margin-top: 8px; text-transform: uppercase; overflow-wrap: anywhere; }
+.resultado-pie { margin: var(--v-2) 0 0; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; }
 .diploma { text-align: center; }
 .diploma b { display: block; font-family: var(--display); font-size: clamp(30px, 7vw, 52px); letter-spacing: -.03em; margin: 10px 0; }
 .diploma .sello-grande {
@@ -1682,11 +1682,13 @@ input::placeholder { color: #a39b8c; }
   .ficha-cabecera span, .cuenta-previa-pie, .ronda-num, .conteo-final-etiqueta,
   .num, .rol, .estado, .quien, .desglose, .movimiento, .sello-resultado,
   .barra-nombre, .barra-salir, .ficha-jugador .num, .ficha-jugador .rol,
-  .conteo-vivo .quien, .conteo-vivo .estado, .puntaje .quien, .puntaje .desglose,
+  .conteo-vivo .quien, .conteo-vivo .estado,
   .fila-podio .movimiento {
     font-size: 12px;
     letter-spacing: .1em;
   }
+  .puntaje .desglose { font-size: 16px; letter-spacing: .03em; }
+  .puntaje .quien { font-size: 14px; letter-spacing: .08em; }
   .pista, .nota, .subtitulo, .detalle, .detalle b, .resultado-pie,
   .ficha-jugador, .ficha-pantalla, .nombre, .aviso,
   .boton.chico, .selector-individual .boton-juego, .marcador .detalle,

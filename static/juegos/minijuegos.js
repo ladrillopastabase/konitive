@@ -30,7 +30,7 @@ function registrarMini(id, def) {
     },
     [`${id}_hide`]: (msg) => {
       if (esPantallaFiesta()) {
-        mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…", "Los mandos están respondiendo.");
+        mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…");
       } else {
         prepararRespuestaMini(id, msg);
       }
@@ -81,12 +81,11 @@ function prepararRespuestaMini(juego, msg) {
       $("contenido").innerHTML = panelAmplio(
         '<p class="kicker">PANTALLA · ESPECTADOR</p>',
         visual,
-        '<p class="pista">LOS MANDOS ESTÁN RESPONDIENDO…</p>',
         `respuesta-${juego} pantalla-espectadora`
       );
       return;
     }
-    mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…", "Los mandos están respondiendo.");
+    mostrarEspera("PANTALLA · ESPECTADOR", "RESPONDIENDO…");
     return;
   }
   $("etiqueta-ronda").textContent = etiquetaRonda(msg);

@@ -37,7 +37,7 @@ function marcarMenor(acepta) {
 
 registrarMini("menor", {
   // Un HTML suelto (no [visual, abajo]): el campo ocupa todo el ancho.
-  estimulo: (msg) => grillaMenorHtml(msg.numeros, false) + '<p class="pista">Recuerda la posición de cada número.</p>',
+  estimulo: (msg) => grillaMenorHtml(msg.numeros, false),
   respuesta(msg) {
     $("contenido").innerHTML = `<div class="panel panel-escena">
       <p class="kicker">TOCA LOS NÚMEROS DE MENOR A MAYOR</p>

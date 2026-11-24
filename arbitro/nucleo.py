@@ -36,6 +36,24 @@ DIFICULTADES_FIESTA = DIFICULTADES
 RONDAS_FIESTA = 5
 RONDAS_FIESTA_MAX = 20
 VICTORIAS_NECESARIAS = 3
+# Rondas por defecto de cada juego en INDIVIDUAL (cuando el cliente no envía
+# ajustes explícitos). Coinciden con los valores que usaba cada bucle antes del
+# menú de ajustes.
+RONDAS_INDIVIDUAL_DEFECTO = {
+    "pajaros": 3,
+    "escritura": 3,
+    "cajas": 10,
+    "operaciones": 10,
+    "rastreo": 5,
+    "stroop": 20,
+    "triangulos": 10,
+    "relojes": 10,
+    "menor": 5,
+    "memoria": 6,
+    "vuelto": 10,
+    "silabas": 10,
+    "ppt": 10,
+}
 # La cuenta previa va del 3 al 1, con un paso de 0,8 s por número.
 TIEMPO_PASO_CUENTA = 0.8
 TIEMPO_CUENTA_PREVIA = 2.4
@@ -160,9 +178,15 @@ class Sala:
 
 def ajuste_actual(sala: Sala) -> dict:
     """Rondas y dificultad que eligió el anfitrión para el juego en curso."""
-    if sala.modo != "fiesta" or not sala.juego_fiesta:
-        return {}
-    return sala.ajustes_fiesta.get(sala.juego_fiesta, {})
+    if sala.modo == "fiesta":
+        if not sala.juego_fiesta:
+            return {}
+        return sala.ajustes_fiesta.get(sala.juego_fiesta, {})
+    if sala.modo == "individual":
+        if not sala.juego_individual:
+            return {}
+        return sala.ajustes_fiesta.get(sala.juego_individual, {})
+    return {}
 
 
 def rondas_para(sala: Sala, defecto: int) -> int:

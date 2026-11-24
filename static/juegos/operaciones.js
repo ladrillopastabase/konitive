@@ -20,7 +20,7 @@ function mostrarOperacion(msg) {
   $("contenido").innerHTML = `<div class="panel panel-escena flash">
     <p class="kicker">FASE 02 · MEMORIZA · ${escapeHtml(msg.dificultad || "")}</p>
     <div class="flash-palabra">${escapeHtml(msg.texto)}</div>
-    <p class="pista flash-pista">Solo un instante. Recuerda el resultado.</p>
+    <p class="pista flash-pista">¡MEMORIZA!</p>
   </div>`;
 }
 
@@ -31,7 +31,7 @@ function iniciarEscrituraDigitos(msg) {
   $("titulo-juego").textContent = "OPERACIONES";
   iniciarCanvasEscritura({
     kicker: "FASE 03 · ESCRIBE EL RESULTADO CIFRA A CIFRA",
-    pista: "Dibuja una cifra (0-9), pulsa LISTO y sigue con la siguiente.",
+    pista: "ESCRIBE",
     tipoMensaje: "digit",
     terminoTexto: "RESULTADO COMPLETO · ESPERANDO",
   });

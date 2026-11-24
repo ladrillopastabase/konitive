@@ -21,7 +21,7 @@ registrarMini("relojes", {
     </div>`;
   },
   estimulo(msg) {
-    return [this.visual(msg), '<p class="pista">¿Cuánto tiempo pasó hacia adelante? Fíjate si es a. m. (mañana) o p. m. (tarde).</p>'];
+    return [this.visual(msg), '<p class="pista">¡RELOJES!</p>'];
   },
   respuesta(msg, mando) {
     const show = mando ? {} : (msg.reloj1 ? msg : (ultimoShowMini.relojes || {}));
@@ -40,7 +40,6 @@ registrarMini("relojes", {
           </div>`
         ).join("")}
       </div>
-      <p class="pista stepper-ayuda">Flechas ← → eligen horas o minutos; ↑ ↓ cambian el número; Enter confirma.</p>
       <button type="button" class="boton rojo" id="btn-responder">CONFIRMAR</button>
       <div class="mini-progreso" id="mini-progreso"></div>`,
       "respuesta-relojes"

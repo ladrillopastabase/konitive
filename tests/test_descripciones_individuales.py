@@ -32,15 +32,15 @@ document.getElementById('f').addEventListener('load', () => {
     const texto = d.getElementById('ficha-juego-texto');
     if (!titulo || !texto) { terminar({error: 'Falta la ficha lateral'}); return; }
     const leer = () => [titulo.textContent.trim(), texto.textContent.trim()];
-    const boton = (juego) => d.querySelector('[data-juego="' + juego + '"]');
+    const boton = (juego) => d.querySelector('[data-alternar="' + juego + '"]');
     const evento = (elemento, tipo, Tipo) =>
       elemento.dispatchEvent(new Tipo(tipo, {bubbles: false}));
 
     const resultado = {
       inicial: leer(), hover: {}, foco: {}, por_juego: {},
-      orden: [...d.querySelectorAll('#selector-individual [data-juego]')].map((b) => b.dataset.juego),
+      orden: [...d.querySelectorAll('#lista-individual [data-alternar]')].map((b) => b.dataset.alternar),
       fiesta: [...d.querySelectorAll('#lista-fiesta [data-alternar]')].map((b) => b.dataset.alternar),
-      dificultades_rastreo: [...d.querySelectorAll('[data-dificultad="rastreo"] option')].map((o) => o.value),
+      dificultades_rastreo: [...d.querySelectorAll('#lista-individual [data-dificultad="rastreo"] option')].map((o) => o.value),
     };
     for (const juego of JUEGOS) {
       const b = boton(juego);

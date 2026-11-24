@@ -171,7 +171,6 @@ function prepararRespuestaCajas() {
     <p class="kicker">FASE 03 · RESPONDE</p>
     <h2 class="panel-titulo">¿CUÁNTAS CAJAS HABÍA?</h2>
     ${STEPPER_HTML}
-    <p class="pista stepper-ayuda">Usa los botones o las flechas arriba y abajo. Cuenta también las cajas ocultas.</p>
     <button id="btn-responder" class="boton rojo">CONFIRMAR CUENTA</button>
   </div>`;
 

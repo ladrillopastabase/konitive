@@ -18,7 +18,7 @@ registrarMini("vuelto", {
         </div>`;
   },
   estimulo(msg) {
-    return [this.visual(msg), '<p class="pista">Prepara el vuelto exacto en tu celular.</p>'];
+    return [this.visual(msg), '<p class="pista">¡VUELTO!</p>'];
   },
   respuesta(msg, mando) {
     const elegidos = {};

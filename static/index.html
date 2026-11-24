@@ -61,25 +61,29 @@
       </div>
     </section>
 
-    <!-- INDIVIDUAL: elegir uno, varios o todos los juegos -->
+    <!-- INDIVIDUAL: elegir uno, varios o todos los juegos con rondas y dificultad -->
     <section id="pantalla-individual" class="pantalla">
       <div class="lobby">
         <p class="kicker">MODO INDIVIDUAL</p>
         <h2 class="panel-titulo">ELIGE TUS PRUEBAS</h2>
-        <p class="pista">Marca una, varias o todas. Se jugarán una detrás de otra y al final verás un resumen con tus puntos.</p>
-        <div class="selector-layout">
-          <!-- Los botones salen del catálogo (juego/catalogo.py) en app.js. -->
-          <div class="selector-individual" id="selector-individual"></div>
-          <aside class="ficha-juego" id="ficha-juego" aria-live="polite">
-            <h3 class="ficha-juego-titulo" id="ficha-juego-titulo">CONITA</h3>
-            <p class="ficha-juego-texto" id="ficha-juego-texto">Elige una prueba para ver cómo entrena a Conita.</p>
-          </aside>
+        <p class="pista">Marca una, varias o todas. Elige rondas y dificultad de cada una. Se jugarán una detrás de otra y al final verás un resumen con tus puntos.</p>
+        <div id="selector-individual" class="selector-fiesta">
+          <div class="selector-cabecera">
+            <p class="kicker">ELIGE LOS JUEGOS · RONDAS · DIFICULTAD</p>
+            <div class="selector-acciones">
+              <button id="btn-todos" class="boton contorno chico" type="button">TODOS</button>
+              <button id="btn-ninguno" class="boton contorno chico" type="button">NINGUNO</button>
+            </div>
+          </div>
+          <div class="lista-fiesta" id="lista-individual"></div>
+          <div class="selector-pie">
+            <button id="btn-empezar-individual" class="boton rojo" type="button" disabled>EMPEZAR</button>
+          </div>
         </div>
-        <div class="acciones">
-          <button id="btn-todos" class="boton contorno chico" type="button">JUGAR TODOS</button>
-          <button id="btn-ninguno" class="boton contorno chico" type="button">QUITAR TODOS</button>
-        </div>
-        <button id="btn-empezar-individual" class="boton rojo" type="button" disabled>EMPEZAR</button>
+        <aside class="ficha-juego" id="ficha-juego" aria-live="polite">
+          <h3 class="ficha-juego-titulo" id="ficha-juego-titulo">CONITA</h3>
+          <p class="ficha-juego-texto" id="ficha-juego-texto">Elige una prueba para ver cómo entrena a Conita.</p>
+        </aside>
         <p id="error-individual" class="error" role="alert"></p>
       </div>
     </section>

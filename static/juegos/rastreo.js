@@ -201,14 +201,7 @@ function mostrarRastreo(msg, fase) {
   const pantalla = esPantallaFiesta();
   const observa = fase === "observacion";
   const interactiva = fase === "identificacion" && !pantalla;
-  const pista = observa
-    ? "Memoriza dónde están los dos hámsters; el resto son gatos."
-    : fase === "movimiento"
-      ? "Sigue las casillas. Las identidades quedan ocultas."
-      : pantalla
-        ? "Los mandos señalan dos casillas desde su celular."
-        : "Toca las dos casillas donde crees que están los hámsters.";
-  const abajo = `<p class="pista">${pista}</p>` +
+  const abajo =
     (msg.duracion ? '<div class="barra-tiempo"><div id="barra-tiempo"></div></div>' : "");
   $("contenido").innerHTML = panelAmplio(
     `<p class="kicker">${kicker}</p>`,
